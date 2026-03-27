@@ -13,7 +13,12 @@ export async function POST(req: NextRequest) {
 
         const aiPrompt = `You are an expert researcher writing a paper on the topic: "${topic}".
 ${contextInfo}
-Write a COMPLETE research paper perfectly structured for IEEE format. Make the content dense and professional, at least 1000 words total across the sections.
+Write a COMPLETE research paper perfectly structured for IEEE format. Make the content dense and professional, at least 1500 words total across the sections. The user expects a fully formatted, publication-ready paper with visuals.
+
+In your response, you MUST include:
+1. In the METHODS section: Include an SVG Process Flowchart showing the architecture/steps of your methodology. Use \`\`\`svg \\n <svg viewBox="0 0 800 400" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="background-color: white;">...</svg> \\n \`\`\`. The flowchart should be a professional block diagram with rectangular nodes, text, and arrows.
+2. In the RESULTS section: Include a professional GFM Markdown Data Table (with at least 4 rows and 3 columns) comparing key metrics or hardware specifications.
+3. In the RESULTS section: Include an SVG Graph (Bar chart or Line chart) visualizing the abstract data. Use \`\`\`svg \\n <svg viewBox="0 0 800 400" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="background-color: white;">...</svg> \\n \`\`\`. Give it a white background, black axes, padding margins, and use standard professional chart aesthetics.
 
 Respond EXACTLY in this format, using the exact delimiters:
 
@@ -24,9 +29,9 @@ Respond EXACTLY in this format, using the exact delimiters:
 <<<INTRODUCTION>>>
 [Introductory text...]
 <<<METHODS>>>
-[Methods and material text...]
+[Methods text... Include your SVG flowchart here]
 <<<RESULTS>>>
-[Results and discussion text... Include a mock SVG graph if relevant wrapped in \`\`\`svg \n <svg>...</svg> \n \`\`\`]
+[Results text... Include your Markdown table and SVG Graph here]
 <<<CONCLUSION>>>
 [Conclusion text...]`;
 

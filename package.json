@@ -28,6 +28,7 @@
     "cloudinary": "^2.8.0",
     "clsx": "^2.1.1",
     "framer-motion": "^12.26.2",
+    "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.0.0",
     "lucide-react": "^0.559.0",
