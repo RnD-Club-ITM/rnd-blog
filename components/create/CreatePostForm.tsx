@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { tomorrow } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import { Button } from "@/components/retroui/Button";
@@ -18,6 +19,12 @@ import {
   Eye,
   EyeOff,
   LayoutTemplate,
+  Bot,
+  BarChart,
+  Plus,
+  Trash,
+  Table as TableIcon,
+  Workflow
 } from "lucide-react";
 import Image from "next/image";
 import {
@@ -54,6 +61,8 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
   const isEditing = !!postId;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const [authorDetails, setAuthorDetails] = useState("First Author*1\nDepartment, University/Institute, City, State, Country\nexample@ijsset.com");
+
   const [formData, setFormData] = useState({
     title: initialData?.title || "",
     excerpt: initialData?.excerpt || "",
@@ -61,6 +70,24 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
     tags: initialData?.tags || [],
     coverImageUrl: initialData?.coverImageUrl || "",
   });
+
+  type SectionType = 'introduction' | 'methods' | 'results' | 'conclusion';
+  const [activeTab, setActiveTab] = useState<SectionType>('introduction');
+  const [sections, setSections] = useState({
+    introduction: initialData?.content || "",
+    methods: "",
+    results: "",
+    conclusion: "",
+  });
+
+  useEffect(() => {
+    if (isEditing && !sections.methods && !sections.results && !sections.conclusion) {
+      // Avoid overwriting a unified edit string if they are just loading
+      return; 
+    }
+    const combinedContent = `# I. INTRODUCTION\n\n${sections.introduction}\n\n# II. METHODS AND MATERIAL\n\n${sections.methods}\n\n# III. RESULTS AND DISCUSSION\n\n${sections.results}\n\n# IV. CONCLUSION\n\n${sections.conclusion}`;
+    setFormData((prev) => ({ ...prev, content: combinedContent }));
+  }, [sections]);
 
   // Initialize char counts based on initialData
   const [charCounts, setCharCounts] = useState({
@@ -87,6 +114,103 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
 
   const [aiSuggestions, setAiSuggestions] = useState<string | null>(null);
   const [isImproving, setIsImproving] = useState(false);
+  const [isGeneratingGraph, setIsGeneratingGraph] = useState(false);
+  
+  // Graph GUI State
+  const [isGraphModalOpen, setIsGraphModalOpen] = useState(false);
+  const [graphType, setGraphType] = useState("Bar Chart");
+  const [graphTitle, setGraphTitle] = useState("Research Findings");
+  const [xAxisLabel, setXAxisLabel] = useState("Models");
+  const [yAxisLabel, setYAxisLabel] = useState("Accuracy");
+  const [graphData, setGraphData] = useState<{label: string, value: string}[]>([
+      {label: "Model A", value: "85"},
+      {label: "Model B", value: "92"},
+      {label: "Model C", value: "88"}
+  ]);
+  const [generatedGraphSvg, setGeneratedGraphSvg] = useState<string>("");
+
+  useEffect(() => {
+    if (!isGraphModalOpen) return;
+    const w = 800; const h = 400; const p = 60;
+    const cw = w - p * 2; const ch = h - p * 2;
+    const safeData = graphData.filter(d => d.label && !isNaN(Number(d.value)));
+    const maxV = Math.max(...safeData.map(d => Number(d.value)), 1);
+
+    let svg = `<svg viewBox="0 0 ${w} ${h}" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="background-color: white;">\n<rect width="100%" height="100%" fill="white" />\n${graphTitle ? `<text x="${w/2}" y="30" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="20" fill="#000">${graphTitle}</text>` : ""}\n<line x1="${p}" y1="${p}" x2="${p}" y2="${h - p}" stroke="#000" stroke-width="2" />\n<text x="20" y="${h/2}" transform="rotate(-90, 20, ${h/2})" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#000">${yAxisLabel}</text>\n<line x1="${p}" y1="${h - p}" x2="${w - p}" y2="${h - p}" stroke="#000" stroke-width="2" />\n<text x="${w/2}" y="${h - 15}" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#000">${xAxisLabel}</text>\n`;
+
+    if (graphType === "Bar Chart" && safeData.length > 0) {
+        const bw = (cw / safeData.length) * 0.6;
+        safeData.forEach((d, i) => {
+            const bh = (Number(d.value) / maxV) * ch;
+            const x = p + (i * (cw / safeData.length)) + ((cw / safeData.length) * 0.2);
+            const y = h - p - bh;
+            svg += `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" fill="#3b82f6" rx="4" />\n<text x="${x + bw/2}" y="${h - p + 20}" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#000">${d.label}</text>\n<text x="${x + bw/2}" y="${y - 10}" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#666">${d.value}</text>\n`;
+        });
+    } else if (graphType === "Line Chart" && safeData.length > 0) {
+        const space = cw / Math.max(safeData.length - 1, 1);
+        const pts = safeData.map((d, i) => `${p + (i * space)},${h - p - ((Number(d.value) / maxV) * ch)}`).join(" ");
+        svg += `<polyline points="${pts}" fill="none" stroke="#ef4444" stroke-width="3" />\n`;
+        safeData.forEach((d, i) => {
+            const cx = p + (i * space);
+            const cy = h - p - ((Number(d.value) / maxV) * ch);
+            svg += `<circle cx="${cx}" cy="${cy}" r="5" fill="#ef4444" />\n<text x="${cx}" y="${h - p + 20}" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#000">${d.label}</text>\n<text x="${cx}" y="${cy - 12}" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#666">${d.value}</text>\n`;
+        });
+    }
+    svg += `</svg>`;
+    setGeneratedGraphSvg(svg);
+  }, [graphData, graphType, graphTitle, xAxisLabel, yAxisLabel, isGraphModalOpen]);
+
+  // Flowchart GUI State
+  const [isFlowModalOpen, setIsFlowModalOpen] = useState(false);
+  const [flowDirection, setFlowDirection] = useState("horizontal");
+  const [flowSteps, setFlowSteps] = useState([{ label: "Data Prep", desc: "Clean Logs" }, { label: "Train", desc: "Neural Net" }]);
+  const [generatedFlowSvg, setGeneratedFlowSvg] = useState("");
+
+  // Table GUI State
+  const [isTableModalOpen, setIsTableModalOpen] = useState(false);
+  const [tableData, setTableData] = useState<string[][]>([
+    ["Model", "Accuracy", "F1"],
+    ["SVM", "88%", "0.86"],
+    ["Random Forest", "92%", "0.91"]
+  ]);
+
+  useEffect(() => {
+     if (!isFlowModalOpen) return;
+     const p = 40; const bw = 160; const bh = 80; const gap = 60;
+     let svg = "";
+     if (flowDirection === "horizontal") {
+         const w = p * 2 + flowSteps.length * bw + Math.max(flowSteps.length - 1, 0) * gap;
+         const h = p * 2 + bh;
+         svg = `<svg viewBox="0 0 ${Math.max(w, 100)} ${Math.max(h, 100)}" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="background-color: white;">\n<rect width="100%" height="100%" fill="white" />\n<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#000" /></marker></defs>\n`;
+         
+         flowSteps.forEach((step, i) => {
+             const x = p + i * (bw + gap);
+             const y = p;
+             svg += `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" fill="#f8fafc" stroke="#3b82f6" stroke-width="3" rx="8" />\n<text x="${x + bw/2}" y="${y + bh/2 - 5}" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="bold" fill="#0f172a">${step.label}</text>\n${step.desc ? `<text x="${x + bw/2}" y="${y + bh/2 + 15}" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#64748b">${step.desc}</text>\n` : ""}`;
+             if (i < flowSteps.length - 1) {
+                 svg += `<line x1="${x + bw}" y1="${y + bh/2}" x2="${x + bw + gap - 4}" y2="${y + bh/2}" stroke="#000" stroke-width="2" marker-end="url(#arrow)" />\n`;
+             }
+         });
+         svg += `</svg>`;
+     } else {
+         const w = p * 2 + bw;
+         const h = p * 2 + flowSteps.length * bh + Math.max(flowSteps.length - 1, 0) * gap;
+         svg = `<svg viewBox="0 0 ${Math.max(w, 100)} ${Math.max(h, 100)}" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="background-color: white;">\n<rect width="100%" height="100%" fill="white" />\n<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#000" /></marker></defs>\n`;
+         
+         flowSteps.forEach((step, i) => {
+             const x = p;
+             const y = p + i * (bh + gap);
+             svg += `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" fill="#f8fafc" stroke="#3b82f6" stroke-width="3" rx="8" />\n<text x="${x + bw/2}" y="${y + bh/2 - 5}" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="bold" fill="#0f172a">${step.label}</text>\n${step.desc ? `<text x="${x + bw/2}" y="${y + bh/2 + 15}" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#64748b">${step.desc}</text>\n` : ""}`;
+             if (i < flowSteps.length - 1) {
+                 svg += `<line x1="${x + bw/2}" y1="${y + bh}" x2="${x + bw/2}" y2="${y + bh + gap - 4}" stroke="#000" stroke-width="2" marker-end="url(#arrow)" />\n`;
+             }
+         });
+         svg += `</svg>`;
+     }
+     setGeneratedFlowSvg(svg);
+  }, [flowSteps, flowDirection, isFlowModalOpen]);
+
+  const [isWritingPaper, setIsWritingPaper] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [isConvertingPdf, setIsConvertingPdf] = useState(false);
@@ -101,16 +225,15 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
     const textarea = textareaRef.current;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
-    const text = formData.content;
-    const before = text.substring(0, start);
-    const after = text.substring(end, text.length);
+    const currentText = sections[activeTab];
+    const before = currentText.substring(0, start);
+    const after = currentText.substring(end, currentText.length);
 
     const newContent = before + textToInsert + after;
 
-    handleChange("content", newContent);
+    setSections((prev) => ({ ...prev, [activeTab]: newContent }));
 
     // Restore cursor position after the inserted text
-    // Need to use setTimeout to allow state update to happen first
     setTimeout(() => {
       if (textareaRef.current) {
         textareaRef.current.selectionStart = start + textToInsert.length;
@@ -341,6 +464,38 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
     }
   };
 
+  const handleInsertGraph = () => {
+      if (!generatedGraphSvg) return;
+      const svgGraph = `\n\n\`\`\`svg\n${generatedGraphSvg}\n\`\`\`\n\n`;
+      if (activeTab !== 'results') setActiveTab('results');
+      setSections((prev) => ({ ...prev, [activeTab]: prev[activeTab] + svgGraph }));
+      toast.success("Graph added successfully!");
+      setIsGraphModalOpen(false);
+  };
+
+  const handleInsertFlow = () => {
+      if (!generatedFlowSvg) return;
+      const svgCode = `\n\n\`\`\`svg\n${generatedFlowSvg}\n\`\`\`\n\n`;
+      if (activeTab !== 'methods') setActiveTab('methods'); // Process flows naturally fit Methods
+      setSections((prev) => ({ ...prev, [activeTab]: prev[activeTab] + svgCode }));
+      toast.success("Flowchart added successfully!");
+      setIsFlowModalOpen(false);
+  };
+
+  const insertMarkdownTable = () => {
+    if (tableData.length === 0 || tableData[0].length === 0) return;
+    let md = "\n\n";
+    md += "| " + tableData[0].join(" | ") + " |\n"; // Header
+    md += "| " + tableData[0].map(() => "---").join(" | ") + " |\n"; // Separator
+    for (let i = 1; i < tableData.length; i++) {
+        md += "| " + tableData[i].join(" | ") + " |\n"; // Body
+    }
+    md += "\n";
+    if (activeTab !== 'results') setActiveTab('results');
+    setSections((prev) => ({ ...prev, [activeTab]: prev[activeTab] + md }));
+    setIsTableModalOpen(false);
+  };
+
   return (
     <>
       <form onSubmit={handleInitialSubmit} className="max-w-7xl mx-auto">
@@ -349,133 +504,105 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
           {/* LEFT COLUMN: Editor */}
           <div className="space-y-6">
             {/* Metadata Card */}
-            <div className="bg-card border-brutal p-6 space-y-6 rounded-lg">
-              <h3 className="font-head text-xl font-bold border-b border-border pb-2 mb-4">
-                Post Details
-              </h3>
+            <div className="bg-card border-brutal p-6 space-y-6 rounded-lg relative overflow-hidden">
+              <div className="flex justify-between items-center border-b border-border pb-2 mb-4">
+                <h3 className="font-head text-xl font-bold">
+                  Research Details
+                </h3>
+                <Button 
+                   type="button" 
+                   onClick={async () => {
+                      if (!formData.title) {
+                          toast.error("Please enter a paper title first to guide the AI.");
+                          return;
+                      }
+                      setIsWritingPaper(true);
+                      const toastId = toast.loading("AI is researching and writing the paper...");
+                      try {
+                        const res = await fetch("/api/ai/write-paper", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ topic: formData.title, existingContent: sections.introduction }),
+                        });
+                        if (!res.ok) {
+                           const errorData = await res.json().catch(() => ({}));
+                           throw new Error(errorData.error || "Paper writing failed");
+                        }
+                        const data = await res.json();
+                        handleChange("excerpt", data.abstract || "");
+                        if (data.keywords && typeof data.keywords === 'string') {
+                           const kw = data.keywords.split(",").map((k: string) => k.trim());
+                           setFormData(prev => ({ ...prev, tags: kw }));
+                        }
+                        setSections({
+                           introduction: data.introduction || "",
+                           methods: data.methods || "",
+                           results: data.results || "",
+                           conclusion: data.conclusion || ""
+                        });
+                        toast.success("Paper auto-written successfully!", { id: toastId });
+                      } catch (error: any) {
+                        toast.error(error.message, { id: toastId });
+                      } finally {
+                        setIsWritingPaper(false);
+                      }
+                   }}
+                   disabled={isWritingPaper}
+                   className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm flex items-center gap-2 text-xs"
+                >
+                   {isWritingPaper ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bot className="w-4 h-4" />}
+                   Auto-Generate Paper from Title
+                </Button>
+              </div>
 
               {/* Title */}
               <div>
                 <label className="block font-semibold mb-2 text-sm uppercase tracking-wide">
-                  Title <span className="text-red-500">*</span>
+                  Paper Title <span className="text-red-500">*</span>
                 </label>
                 <Input
                   type="text"
                   value={formData.title}
                   onChange={(e) => handleChange("title", e.target.value)}
-                  placeholder="E.g., Building a Neural Network from Scratch"
+                  placeholder="E.g., An Approach to Neural Networks"
                   maxLength={100}
                   required
                   className="w-full text-lg font-bold"
                 />
-                <div className="flex justify-end mt-1">
-                  <span
-                    className={cn(
-                      "text-xs font-mono",
-                      charCounts.title > 90
-                        ? "text-red-500"
-                        : "text-muted-foreground",
-                    )}
-                  >
-                    {charCounts.title}/100
-                  </span>
-                </div>
+              </div>
+
+              {/* Author Details */}
+              <div>
+                <label className="block font-semibold mb-2 text-sm uppercase tracking-wide">
+                  Author Details
+                </label>
+                <textarea
+                  value={authorDetails}
+                  onChange={(e) => setAuthorDetails(e.target.value)}
+                  placeholder="First Author*1\nDepartment, University...\nemail@example.com"
+                  rows={3}
+                  className="w-full border-brutal p-3 focus:ring-primary font-body text-sm resize-y bg-background text-foreground"
+                />
               </div>
 
               {/* Excerpt */}
               <div>
                 <label className="block font-semibold mb-2 text-sm uppercase tracking-wide">
-                  Excerpt
+                  Abstract
                 </label>
                 <textarea
                   value={formData.excerpt}
                   onChange={(e) => handleChange("excerpt", e.target.value)}
-                  placeholder="A brief summary that appears on the card..."
-                  maxLength={200}
-                  rows={3}
-                  className="w-full border-brutal p-3 focus:ring-primary font-body text-sm resize-none bg-background text-foreground"
+                  placeholder="This document provides some minimal guidelines..."
+                  rows={4}
+                  className="w-full border-brutal p-3 focus:ring-primary font-body text-sm resize-y bg-background text-foreground"
                 />
-                <div className="flex justify-end mt-1">
-                  <span
-                    className={cn(
-                      "text-xs font-mono",
-                      charCounts.excerpt > 190
-                        ? "text-red-500"
-                        : "text-muted-foreground",
-                    )}
-                  >
-                    {charCounts.excerpt}/200
-                  </span>
-                </div>
-              </div>
-
-              {/* Cover Image */}
-              <div>
-                <label className="block font-semibold mb-2 text-sm uppercase tracking-wide">
-                  Cover Image
-                </label>
-                <input
-                  type="file"
-                  ref={coverInputRef}
-                  className="hidden"
-                  accept="image/*"
-                  onChange={handleCoverUpload}
-                />
-
-                {formData.coverImageUrl ? (
-                  <div className="relative w-full h-48 rounded-md overflow-hidden border-2 border-brutal group">
-                    <Image
-                      src={formData.coverImageUrl}
-                      alt="Cover"
-                      fill
-                      className="object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleChange("coverImageUrl", "")}
-                      className="absolute top-2 right-2 bg-destructive text-destructive-foreground p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                    >
-                      <TrashIcon className="w-4 h-4" />
-                    </button>
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => coverInputRef.current?.click()}
-                        className="bg-background text-foreground hover:bg-muted"
-                      >
-                        Change Image
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div
-                    onClick={() => coverInputRef.current?.click()}
-                    className="border-2 border-dashed border-border rounded-md p-8 text-center hover:bg-muted/10 transition-colors cursor-pointer flex flex-col items-center justify-center gap-3"
-                  >
-                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                      {isUploadingCover ? (
-                        <Loader2 className="w-6 h-6 animate-spin" />
-                      ) : (
-                        <UploadCloud className="w-6 h-6 text-muted-foreground" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">
-                        Click to upload cover
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        1200x630px recommended
-                      </p>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Tags */}
               <div>
                 <label className="block font-semibold mb-2 text-sm uppercase tracking-wide">
-                  Tags
+                  Keywords
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {TAGS.map((tag) => (
@@ -589,6 +716,64 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
                   I
                 </button>
 
+                <div className="h-4 w-px bg-background/20 mx-1"></div>
+
+                <button
+                  type="button"
+                  disabled={isGeneratingGraph}
+                  onClick={async () => {
+                    const prompt = window.prompt("What should the graph show? (e.g., Line chart showing accuracy over 10 epochs)");
+                    if (!prompt) return;
+                    setIsGeneratingGraph(true);
+                    const toastId = toast.loading("Generating SVG Graph...");
+                    try {
+                      const res = await fetch("/api/ai/generate-graph", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ prompt }),
+                      });
+                      if (!res.ok) throw new Error("Graph generation failed");
+                      const data = await res.json();
+                      insertTextAtCursor("\\n```svg\\n" + data.svg + "\\n```\\n");
+                      toast.success("Graph added successfully!", { id: toastId });
+                    } catch (error: any) {
+                      toast.error(error.message, { id: toastId });
+                    } finally {
+                      setIsGeneratingGraph(false);
+                    }
+                  }}
+                  className="p-2 hover:bg-background/20 rounded-md transition-colors text-xs font-bold flex items-center gap-1"
+                  title="Generate Graph with AI"
+                >
+                  {isGeneratingGraph ? <Loader2 className="w-4 h-4 animate-spin" /> : <BarChart className="w-4 h-4" />}
+                </button>
+
+                  <button
+                  type="button"
+                  onClick={() => setIsTableModalOpen(true)}
+                  className="p-2 hover:bg-background/20 rounded-md transition-colors text-xs font-bold flex items-center gap-1"
+                  title="Insert Table"
+                >
+                  <TableIcon className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsFlowModalOpen(true)}
+                  className="p-2 hover:bg-background/20 rounded-md transition-colors text-xs font-bold flex items-center gap-1"
+                  title="Insert Flowchart"
+                >
+                  <Workflow className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  disabled={isGeneratingGraph}
+                  onClick={() => setIsGraphModalOpen(true)}
+                  className="p-2 hover:bg-background/20 rounded-md transition-colors text-xs font-bold flex items-center gap-1"
+                  title="Generate Graph with AI"
+                >
+                  {isGeneratingGraph ? <Loader2 className="w-4 h-4 animate-spin" /> : <BarChart className="w-4 h-4" />}
+                </button>
+
                 <div className="flex-1"></div>
 
                 <button
@@ -606,11 +791,11 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
                       const res = await fetch("/api/ai/improve", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ content: formData.content }),
+                        body: JSON.stringify({ content: sections[activeTab] }),
                       });
                       if (!res.ok) throw new Error("Failed to improve");
                       const data = await res.json();
-                      handleChange("content", data.content);
+                      setSections((prev) => ({ ...prev, [activeTab]: data.content }));
                       if (data.suggestions) {
                         setAiSuggestions(data.suggestions);
                         toast.success(
@@ -630,6 +815,24 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
                 </button>
               </div>
 
+              <div className="flex bg-muted p-1 rounded-lg gap-1 border-2 border-brutal overflow-x-auto">
+                {(['introduction', 'methods', 'results', 'conclusion'] as SectionType[]).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setActiveTab(tab)}
+                    className={cn(
+                      "px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-md transition-all whitespace-nowrap",
+                      activeTab === tab
+                        ? "bg-background shadow-brutal-sm translate-y-[-2px] border-2 border-border"
+                        : "hover:bg-background/50 text-muted-foreground border-2 border-transparent"
+                    )}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+
               {/* Textarea */}
               {isImproving ? (
                 <div className="w-full border-brutal border-t-0 p-4 h-[500px] rounded-b-lg bg-muted/5">
@@ -642,9 +845,9 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
               ) : (
                 <textarea
                   ref={textareaRef}
-                  value={formData.content}
-                  onChange={(e) => handleChange("content", e.target.value)}
-                  placeholder="# Your Research Header\n\nStart writing your amazing findings here..."
+                  value={sections[activeTab]}
+                  onChange={(e) => setSections((prev) => ({ ...prev, [activeTab]: e.target.value }))}
+                  placeholder={`Write your ${activeTab} here...\n\n(No need to add the section title, it's added automatically in the preview.)`}
                   className="w-full border-2 border-brutal rounded-b-lg p-6 font-mono text-sm focus:ring-2 focus:ring-ring focus:outline-none min-h-[500px] leading-relaxed resize-y bg-background text-foreground"
                 />
               )}
@@ -706,80 +909,322 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
                 </div>
               </div>
 
-              <div className="border-2 border-dashed border-border rounded-xl p-8 bg-card/50 backdrop-blur-sm shadow-sm min-h-[800px] max-h-[calc(100vh-150px)] overflow-y-auto">
-                <h1 className="font-head text-4xl font-bold mb-4 leading-tight">
-                  {formData.title || (
-                    <span className="text-muted-foreground/30">
-                      Your Title...
-                    </span>
-                  )}
-                </h1>
-
-                {formData.coverImageUrl && (
-                  <div className="relative w-full h-64 mb-8 rounded-lg overflow-hidden border border-border shadow-sm">
-                    <Image
-                      src={formData.coverImageUrl}
-                      alt="Preview"
-                      fill
-                      className="object-cover"
-                    />
+              <div className="border border-border/20 rounded-xl p-10 bg-[#292929] shadow-2xl min-h-[1056px] max-h-[calc(100vh-150px)] overflow-y-auto w-full font-serif text-[#e5e5e5]">
+                {/* Header Container */}
+                <div className="flex justify-end items-start mb-12 border-b border-gray-600 pb-4">
+                  <div className="text-right text-[10px] text-gray-400 font-sans leading-relaxed tracking-wide">
+                     Print ISSN: 2395-1990 | Online ISSN: 2394-4099<br/>
+                     Themed Section: Engineering and Technology
                   </div>
-                )}
+                </div>
 
-                <div className="prose prose-neutral dark:prose-invert max-w-none">
-                  <ReactMarkdown
-                    components={{
-                      code({
-                        node,
-                        inline,
-                        className,
-                        children,
-                        ...props
-                      }: any) {
-                        const match = /language-(\w+)/.exec(className || "");
-                        return !inline && match ? (
-                          <SyntaxHighlighter
-                            style={tomorrow}
-                            language={match[1]}
-                            PreTag="div"
-                            {...props}
-                          >
-                            {String(children).replace(/\n$/, "")}
-                          </SyntaxHighlighter>
-                        ) : (
-                          <code className={className} {...props}>
-                            {children}
-                          </code>
-                        );
-                      },
-                      img({ node, ...props }: any) {
-                        if (props.alt === "Video") {
-                          return (
-                            <video
-                              src={props.src}
-                              controls
-                              className="w-full rounded-md border-2 border-brutal my-4"
-                            />
+                <div className="text-center mb-10 px-8">
+                  <h1 className="text-[28px] font-bold mb-6 font-serif leading-tight">
+                    {formData.title || "Paper Title"}
+                  </h1>
+                  <div className="text-[12px] font-serif leading-relaxed mx-auto max-w-lg">
+                    {authorDetails.split('\n').map((line, i) => (
+                      <p key={i} className={i === 0 ? "font-bold text-[14px] mb-1 whitespace-pre-wrap" : "italic text-gray-300 whitespace-pre-wrap"}>
+                        {line}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="columns-1 md:columns-2 gap-8 text-justify text-[12px] leading-[1.6]">
+                  <div className="prose prose-sm prose-invert max-w-none font-serif [&_h1]:text-[13px] [&_h1]:font-bold [&_h1]:uppercase [&_h1]:text-center [&_h1]:my-6 [&_h1]:tracking-wider [&_h2]:text-[12px] [&_h2]:italic [&_h2]:mb-2 [&_h2]:mt-4 [&_p]:mb-4 [&_p]:text-justify [&_img]:mx-auto [&_img]:my-4 [&_img]:border [&_img]:border-gray-600 [&_table]:w-full [&_table]:text-[10px] [&_table]:break-inside-avoid [&_table]:my-6 [&_th]:border-y-2 [&_th]:border-gray-500 [&_th]:py-2 [&_td]:border-b [&_td]:border-gray-700 [&_td]:py-2 [&_th]:font-bold [&_th]:uppercase [&_th]:bg-white/5 [&_svg]:break-inside-avoid [&_svg]:w-full [&_svg]:h-auto">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        code({
+                          node,
+                          inline,
+                          className,
+                          children,
+                          ...props
+                        }: any) {
+                          const match = /language-(\w+)/.exec(className || "");
+                          if (!inline && match && match[1] === "svg") {
+                              return <div className="my-6 flex justify-center w-full" dangerouslySetInnerHTML={{__html: String(children)}} />;
+                          }
+                          return !inline && match ? (
+                            <SyntaxHighlighter
+                              style={tomorrow}
+                              language={match[1]}
+                              PreTag="div"
+                              className="w-full text-[10px]"
+                              {...props}
+                            >
+                              {String(children).replace(/\n$/, "")}
+                            </SyntaxHighlighter>
+                          ) : (
+                            <code className={className} {...props}>
+                              {children}
+                            </code>
                           );
+                        },
+                        img({ node, ...props }: any) {
+                          if (props.alt === "Video") {
+                            return (
+                              <video
+                                src={props.src}
+                                controls
+                                className="w-full my-4"
+                              />
+                            );
+                          }
+                          return (
+                            <span className="block text-center text-[10px] italic text-gray-400 mb-6 mt-4 break-inside-avoid">
+                              <img
+                                {...props}
+                                className="w-full mb-2"
+                                alt={props.alt}
+                              />
+                              {props.alt}
+                            </span>
+                          );
+                        },
+                        p({ node, children }) {
+                          return <p className="mb-4 indent-6">{children}</p>;
                         }
-                        return (
-                          <img
-                            {...props}
-                            className="w-full rounded-md border-2 border-brutal my-4"
-                            alt={props.alt}
-                          />
-                        );
-                      },
-                    }}
-                  >
-                    {formData.content || "*Start writing to see preview...*"}
-                  </ReactMarkdown>
+                      }}
+                    >
+                      {`**ABSTRACT**\n\n${formData.excerpt || "*The abstract text goes here.*"}\n\n**Keywords:** *${formData.tags.length ? formData.tags.join(", ") : "Keyword1, Keyword2"}*\n\n${formData.content || "*Start writing your introduction...*"}`}
+                    </ReactMarkdown>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </form>
+
+      {/* Local Graph Builder Modal */}
+      {isGraphModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-card w-full max-w-5xl rounded-xl shadow-2xl border-2 border-brutal p-6 flex flex-col md:flex-row gap-8 relative max-h-[90vh] overflow-hidden">
+            
+            {/* Left: Controls */}
+            <div className="w-full md:w-1/3 flex flex-col space-y-4 h-full overflow-y-auto pr-2">
+               <div className="flex justify-between items-center mb-2">
+                 <h3 className="font-head text-xl font-bold flex items-center gap-2">
+                    <BarChart className="w-5 h-5" /> Manual Data Canvas
+                 </h3>
+                 <button type="button" onClick={() => setIsGraphModalOpen(false)} className="md:hidden text-muted-foreground hover:text-foreground font-bold">✕</button>
+               </div>
+               
+               <div>
+                  <label className="text-xs font-bold uppercase tracking-widest block mb-2 text-muted-foreground">Graph Config</label>
+                  <select 
+                     value={graphType} 
+                     onChange={(e) => setGraphType(e.target.value)}
+                     className="w-full border-2 border-brutal rounded-md p-2 bg-background text-sm font-semibold mb-3 focus:ring-2 focus:ring-primary focus:outline-none"
+                  >
+                     <option value="Bar Chart">Bar Chart</option>
+                     <option value="Line Chart">Line Chart</option>
+                  </select>
+                  
+                  <div className="space-y-3">
+                     <Input 
+                        placeholder="Graph Title" 
+                        value={graphTitle} 
+                        onChange={(e) => setGraphTitle(e.target.value)} 
+                     />
+                     <div className="flex gap-2">
+                        <Input placeholder="X-Axis" value={xAxisLabel} onChange={(e) => setXAxisLabel(e.target.value)} />
+                        <Input placeholder="Y-Axis" value={yAxisLabel} onChange={(e) => setYAxisLabel(e.target.value)} />
+                     </div>
+                  </div>
+               </div>
+               
+               <div className="flex-1 overflow-auto border-t border-border pt-4">
+                  <div className="flex justify-between items-center mb-2">
+                     <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Data Points</label>
+                     <button type="button" onClick={() => setGraphData([...graphData, {label: "New", value: "0"}])} className="text-xs font-bold text-primary flex items-center gap-1 hover:underline">
+                        <Plus className="w-3 h-3"/> Add
+                     </button>
+                  </div>
+                  <div className="space-y-2">
+                     {graphData.map((d, i) => (
+                        <div key={i} className="flex gap-2">
+                           <Input className="flex-1" placeholder="Label" value={d.label} onChange={(e) => {
+                               const arr = [...graphData]; arr[i].label = e.target.value; setGraphData(arr);
+                           }}/>
+                           <Input className="w-20" placeholder="Value" type="number" value={d.value} onChange={(e) => {
+                               const arr = [...graphData]; arr[i].value = e.target.value; setGraphData(arr);
+                           }}/>
+                           <button type="button" onClick={() => setGraphData(graphData.filter((_, idx) => idx !== i))} className="p-2 text-red-500 hover:bg-red-500/10 rounded-md">
+                              <Trash className="w-4 h-4" />
+                           </button>
+                        </div>
+                     ))}
+                  </div>
+               </div>
+               
+            </div>
+            
+            {/* Right: Live Preview & Action */}
+            <div className="w-full md:w-2/3 flex flex-col space-y-4 h-[50vh] md:h-full">
+               <h3 className="font-bold text-sm uppercase text-muted-foreground tracking-widest hidden md:block">Real-Time Render</h3>
+               
+               <div className="flex-1 bg-[#ffffff] border-2 border-brutal rounded-xl p-4 flex items-center justify-center overflow-auto relative">
+                  {generatedGraphSvg ? (
+                     <div dangerouslySetInnerHTML={{ __html: generatedGraphSvg }} className="w-full h-full flex items-center justify-center [&>svg]:w-full [&>svg]:max-h-full [&>svg]:h-auto" />
+                  ) : (
+                     <p className="text-muted-foreground text-sm font-medium uppercase tracking-widest">Add Data to Preview</p>
+                  )}
+               </div>
+               
+               <div className="flex gap-4 justify-end pt-2">
+                  <Button type="button" variant="outline" onClick={() => setIsGraphModalOpen(false)}>Cancel</Button>
+                  <Button 
+                    type="button"
+                    disabled={!generatedGraphSvg}
+                    onClick={handleInsertGraph}
+                  >
+                      Insert Graph into {activeTab.toUpperCase()}
+                  </Button>
+               </div>
+            </div>
+            
+            <button type="button" onClick={() => setIsGraphModalOpen(false)} className="hidden md:block absolute top-6 right-6 text-muted-foreground hover:text-foreground font-bold">✕</button>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Workflow Builder Modal */}
+      {isFlowModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-card w-full max-w-5xl rounded-xl shadow-2xl border-2 border-brutal p-6 flex flex-col md:flex-row gap-8 relative max-h-[90vh] overflow-hidden">
+            <div className="w-full md:w-1/3 flex flex-col space-y-4 h-full overflow-y-auto pr-2">
+               <div className="flex justify-between items-center mb-2">
+                 <h3 className="font-head text-xl font-bold flex items-center gap-2">
+                    <Workflow className="w-5 h-5" /> Flowchart Editor
+                 </h3>
+                 <button type="button" onClick={() => setIsFlowModalOpen(false)} className="md:hidden text-muted-foreground hover:text-foreground font-bold">✕</button>
+               </div>
+               
+               <div>
+                  <label className="text-xs font-bold uppercase tracking-widest block mb-2 text-muted-foreground">Orientation</label>
+                  <select 
+                     value={flowDirection} 
+                     onChange={(e) => setFlowDirection(e.target.value)}
+                     className="w-full border-2 border-brutal rounded-md p-2 bg-background text-sm font-semibold mb-3 focus:ring-2 focus:ring-primary focus:outline-none"
+                  >
+                     <option value="horizontal">Horizontal (Left to Right)</option>
+                     <option value="vertical">Vertical (Top to Bottom)</option>
+                  </select>
+               </div>
+               
+               <div className="flex-1 overflow-auto border-t border-border pt-4">
+                  <div className="flex justify-between items-center mb-2">
+                     <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Process Steps</label>
+                     <button type="button" onClick={() => setFlowSteps([...flowSteps, {label: "New Step", desc: ""}])} className="text-xs font-bold text-primary flex items-center gap-1 hover:underline">
+                        <Plus className="w-3 h-3"/> Add
+                     </button>
+                  </div>
+                  <div className="space-y-4">
+                     {flowSteps.map((step, i) => (
+                        <div key={i} className="flex flex-col gap-2 p-3 border-2 border-border border-dashed rounded-md relative group">
+                           <Input className="font-bold text-sm" placeholder="Step Name" value={step.label} onChange={(e) => {
+                               const map = [...flowSteps]; map[i].label = e.target.value; setFlowSteps(map);
+                           }}/>
+                           <Input className="text-xs" placeholder="Description (optional)" value={step.desc} onChange={(e) => {
+                               const map = [...flowSteps]; map[i].desc = e.target.value; setFlowSteps(map);
+                           }}/>
+                           <button type="button" onClick={() => setFlowSteps(flowSteps.filter((_, idx) => idx !== i))} className="absolute -top-3 -right-3 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
+                              <Trash className="w-3 h-3" />
+                           </button>
+                        </div>
+                     ))}
+                  </div>
+               </div>
+            </div>
+            
+            <div className="w-full md:w-2/3 flex flex-col space-y-4 h-[50vh] md:h-full">
+               <h3 className="font-bold text-sm uppercase text-muted-foreground tracking-widest hidden md:block">Real-Time Canvas</h3>
+               <div className="flex-1 bg-[#ffffff] border-2 border-brutal rounded-xl p-4 flex items-center justify-center overflow-auto relative">
+                  {generatedFlowSvg && (
+                     <div dangerouslySetInnerHTML={{ __html: generatedFlowSvg }} className="w-full h-full flex items-center justify-center [&>svg]:w-full [&>svg]:max-h-full [&>svg]:h-auto" />
+                  )}
+               </div>
+               <div className="flex gap-4 justify-end pt-2">
+                  <Button type="button" variant="outline" onClick={() => setIsFlowModalOpen(false)}>Cancel</Button>
+                  <Button type="button" onClick={handleInsertFlow}>Insert Flow into {activeTab.toUpperCase()}</Button>
+               </div>
+            </div>
+            <button type="button" onClick={() => setIsFlowModalOpen(false)} className="hidden md:block absolute top-6 right-6 text-muted-foreground hover:text-foreground font-bold">✕</button>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Table Builder Modal */}
+      {isTableModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-card w-full max-w-4xl rounded-xl shadow-2xl border-2 border-brutal p-6 flex flex-col relative max-h-[90vh] overflow-hidden">
+             <div className="flex justify-between items-center mb-6">
+                 <h3 className="font-head text-xl font-bold flex items-center gap-2">
+                    <TableIcon className="w-5 h-5" /> Data Table Grid
+                 </h3>
+                 <button type="button" onClick={() => setIsTableModalOpen(false)} className="text-muted-foreground hover:text-foreground font-bold">✕</button>
+             </div>
+             
+             <div className="flex gap-2 mb-4">
+                 <Button type="button" variant="outline" onClick={() => {
+                     const newRows = [...tableData];
+                     newRows.forEach(r => r.push("Col"));
+                     setTableData(newRows);
+                 }}><Plus className="w-4 h-4 mr-1" /> Column</Button>
+                 
+                 <Button type="button" variant="outline" onClick={() => {
+                     const newRows = [...tableData];
+                     newRows.push(new Array(newRows[0].length).fill("Cell"));
+                     setTableData(newRows);
+                 }}><Plus className="w-4 h-4 mr-1" /> Row</Button>
+             </div>
+             
+             <div className="flex-1 overflow-auto border-2 border-brutal">
+                 <table className="w-full border-collapse">
+                     <tbody>
+                         {tableData.map((row, rowIndex) => (
+                             <tr key={rowIndex}>
+                                 {row.map((cell, colIndex) => (
+                                     <td key={colIndex} className="border p-2 min-w-[120px]">
+                                         <Input 
+                                            value={cell} 
+                                            onChange={(e) => {
+                                                const newT = [...tableData];
+                                                newT[rowIndex][colIndex] = e.target.value;
+                                                setTableData(newT);
+                                            }}
+                                            className={rowIndex === 0 ? "font-bold bg-muted/30" : "bg-transparent"}
+                                         />
+                                     </td>
+                                 ))}
+                                 <td className="w-10 text-center border p-2">
+                                     <button type="button" onClick={() => setTableData(tableData.filter((_, i) => i !== rowIndex))} className="text-red-500 hover:text-red-600"><Trash className="w-4 h-4 mx-auto"/></button>
+                                 </td>
+                             </tr>
+                         ))}
+                     </tbody>
+                 </table>
+             </div>
+             
+             <div className="flex justify-between items-center mt-6">
+                 <Button type="button" variant="outline" onClick={() => {
+                     if (tableData[0].length > 1) {
+                         setTableData(tableData.map(r => r.slice(0, -1)));
+                     }
+                 }} className="text-red-500 hover:text-red-600 border-red-200">Remove Last Column</Button>
+                 
+                 <div className="flex gap-4">
+                    <Button type="button" variant="outline" onClick={() => setIsTableModalOpen(false)}>Cancel</Button>
+                    <Button type="button" onClick={insertMarkdownTable}>Insert Markdown Table</Button>
+                 </div>
+             </div>
+          </div>
+        </div>
+      )}
 
       <Dialog open={isTermsOpen} onOpenChange={setIsTermsOpen}>
         <DialogContent className="max-w-md border-brutal bg-card">

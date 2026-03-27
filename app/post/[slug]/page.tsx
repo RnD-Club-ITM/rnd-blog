@@ -2,6 +2,7 @@ import { client, queries, getImageUrl, urlFor } from '@/lib/sanity/client'
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { tomorrow } from 'react-syntax-highlighter/dist/cjs/styles/prism'
 import { Navigation } from '@/components/layout/Navigation'
@@ -121,6 +122,7 @@ export default async function PostPage({
           {/* Content */}
           <div className="prose prose-brutal prose-lg max-w-none mb-12 break-words overflow-hidden">
             <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
               components={{
                 img({ node, ...props }: any) {
                   if (props.alt === 'Video') {
@@ -142,6 +144,9 @@ export default async function PostPage({
                 },
                 code({ node, inline, className, children, ...props }: any) {
                   const match = /language-(\w+)/.exec(className || '')
+                  if (!inline && match && match[1] === "svg") {
+                      return <div className="my-8 flex justify-center w-full overflow-x-auto" dangerouslySetInnerHTML={{__html: String(children)}} />;
+                  }
                   return !inline && match ? (
                     <SyntaxHighlighter
                       style={tomorrow}
@@ -180,6 +185,23 @@ export default async function PostPage({
                   <blockquote className="border-l-4 border-primary bg-primary/5 pl-4 py-2 my-4">
                     {children}
                   </blockquote>
+                ),
+                table: ({ children, ...props }: any) => (
+                  <div className="w-full overflow-x-auto my-8 border-2 border-black break-inside-avoid shadow-[4px_4px_0_0_#000]">
+                    <table className="w-full text-left border-collapse bg-card" {...props}>
+                      {children}
+                    </table>
+                  </div>
+                ),
+                th: ({ children, ...props }: any) => (
+                  <th className="border-b-2 border-black py-4 px-6 bg-primary/10 font-head font-bold text-lg" {...props}>
+                    {children}
+                  </th>
+                ),
+                td: ({ children, ...props }: any) => (
+                  <td className="border-b border-black/20 py-3 px-6 align-top" {...props}>
+                    {children}
+                  </td>
                 ),
                 p: ({ children }) => (
                   <p className="break-words overflow-wrap-break-word">
