@@ -1,7 +1,5 @@
 'use client'
 
-import { jsPDF } from 'jspdf'
-import html2canvas from 'html2canvas'
 import { Button } from '@/components/retroui/Button'
 import { Download } from 'lucide-react'
 import { useCallback } from 'react'
@@ -18,159 +16,96 @@ interface DownloadPdfButtonProps {
 }
 
 export function DownloadPdfButton({ post }: DownloadPdfButtonProps) {
-    const handleDownload = useCallback(async () => {
-        const contentElement = document.querySelector('.prose')
-        if (!contentElement) {
-            toast.error('Could not find post content')
-            return
+    const handleDownload = useCallback(() => {
+        const container = document.getElementById('research-paper-container');
+        if (!container) {
+            toast.error("Could not find the paper container!");
+            return;
         }
-
-        const toastId = toast.loading('Generating PDF...')
-
-        try {
-            // 1. Create a clean container for the PDF
-            const container = document.createElement('div')
-            container.style.width = '800px'
-            container.style.padding = '60px' // Generous margins
-            container.style.backgroundColor = '#ffffff'
-            container.style.position = 'absolute'
-            container.style.left = '-9999px'
-            container.style.top = '0'
-            container.style.fontFamily = 'ui-sans-serif, system-ui, sans-serif'
-            container.style.color = '#000000'
-
-            // 2. Add Header (Title + Author)
-            const header = document.createElement('div')
-            header.style.borderBottom = '2px solid #000'
-            header.style.marginBottom = '40px'
-            header.style.paddingBottom = '20px'
-
-            const title = document.createElement('h1')
-            title.innerText = post.title
-            title.style.fontSize = '36px'
-            title.style.fontWeight = 'bold'
-            title.style.marginBottom = '10px'
-            title.style.lineHeight = '1.2'
-            title.style.color = '#000000'
-            header.appendChild(title)
-
-            const author = document.createElement('p')
-            author.innerText = `By ${post.author.name}`
-            author.style.fontSize = '18px'
-            author.style.color = '#444'
-            header.appendChild(author)
-
-            container.appendChild(header)
-
-            // 3. Add Content (Clone of the rendered prose)
-            const contentClone = contentElement.cloneNode(true) as HTMLElement
-
-            // Fix prose styles for print
-            contentClone.style.color = '#000000'
-
-            // Force code blocks to look good
-            const codeBlocks = contentClone.querySelectorAll('pre, code')
-            codeBlocks.forEach((block) => {
-                if (block instanceof HTMLElement) {
-                    block.style.backgroundColor = '#f4f4f5'
-                    block.style.border = '1px solid #000'
-                    block.style.color = '#000'
-                    // Ensure padding in code blocks
-                    if (block.tagName === 'PRE') {
-                        block.style.padding = '16px'
-                        block.style.borderRadius = '8px'
-                    }
-                }
-            })
-
-            // Force headers to be black
-            const headers = contentClone.querySelectorAll('h1, h2, h3, h4, h5, h6')
-            headers.forEach((h) => {
-                if (h instanceof HTMLElement) h.style.color = '#000'
-            })
-
-            container.appendChild(contentClone)
-
-            // 4. Add Watermark
-            // We create a wrapper to hold the watermark fully covering the content area
-            const watermarkWrapper = document.createElement('div')
-            watermarkWrapper.style.position = 'absolute'
-            watermarkWrapper.style.top = '0'
-            watermarkWrapper.style.left = '0'
-            watermarkWrapper.style.width = '100%'
-            watermarkWrapper.style.height = '100%'
-            watermarkWrapper.style.overflow = 'hidden'
-            watermarkWrapper.style.pointerEvents = 'none'
-            watermarkWrapper.style.zIndex = '0'
-
-            const watermark = document.createElement('div')
-            watermark.innerText = 'SPARK ⚡'
-            watermark.style.position = 'absolute'
-            watermark.style.top = '50%'
-            watermark.style.left = '50%'
-            watermark.style.transform = 'translate(-50%, -50%) rotate(-45deg)'
-            watermark.style.fontSize = '120px'
-            watermark.style.fontWeight = '900'
-            watermark.style.color = '#000000'
-            watermark.style.opacity = '0.05' // Very subtle
-            watermark.style.whiteSpace = 'nowrap'
-
-            watermarkWrapper.appendChild(watermark)
-
-            // Make content relative so it sits on top of absolute watermark
-            container.style.position = 'relative'
-            container.insertBefore(watermarkWrapper, container.firstChild)
-
-            // Ensure content is above watermark
-            header.style.position = 'relative'
-            header.style.zIndex = '1'
-            contentClone.style.position = 'relative'
-            contentClone.style.zIndex = '1'
-
-            document.body.appendChild(container)
-
-            // 5. Capture
-            const canvas = await html2canvas(container, {
-                scale: 2,
-                useCORS: true,
-                logging: false,
-                backgroundColor: '#ffffff'
-            })
-
-            // 6. PDF Generation
-            const pdf = new jsPDF('p', 'mm', 'a4')
-            const pdfWidth = pdf.internal.pageSize.getWidth()
-            const pdfHeight = pdf.internal.pageSize.getHeight()
-            const imgData = canvas.toDataURL('image/png')
-            const imgWidth = pdfWidth
-            const imgHeight = (canvas.height * imgWidth) / canvas.width
-
-            let heightLeft = imgHeight
-            let position = 0
-
-            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-            heightLeft -= pdfHeight
-
-            while (heightLeft >= 0) {
-                position = heightLeft - imgHeight
-                pdf.addPage()
-                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-                heightLeft -= pdfHeight
-            }
-
-            pdf.save(`${post.title.replace(/\s+/g, '_')}_Spark.pdf`)
-
-            // Cleanup
-            document.body.removeChild(container)
-            toast.success('PDF Downloaded!')
-
-        } catch (error) {
-            console.error(error)
-            toast.error('Failed to generate PDF')
-        } finally {
-            toast.dismiss(toastId)
-        }
-    }, [post.title, post.author.name])
+        
+        toast.info("Preparing isolated vector PDF...");
+        
+        // Setup hidden iframe to fully isolate the paper print dialog
+        // CRITICAL: We MUST give the iframe a desktop width (e.g. 1024px) 
+        // so Tailwind's 'md:columns-2' media query respects the IEEE format!
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.right = '-2000px'; // Push way off screen
+        iframe.style.bottom = '0';
+        iframe.style.width = '1024px';  // Desktop width to trigger MD breakpoints
+        iframe.style.height = '1024px';
+        iframe.style.border = '0';
+        document.body.appendChild(iframe);
+        
+        const iframeDoc = iframe.contentWindow?.document;
+        if (!iframeDoc) return;
+        
+        // Grab all current stylesheets (Tailwind + Custom)
+        const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+            .map(node => node.outerHTML)
+            .join('');
+            
+        // Clone the structured container securely
+        const printContent = container.outerHTML;
+        
+        iframeDoc.open();
+        iframeDoc.write(`
+            <!DOCTYPE html>
+            <html>
+                <head>
+                    <title>${post.title}</title>
+                    ${styles}
+                    <style>
+                        /* Complete Isolation Print Override CSS */
+                        @page { margin: 15mm; }
+                        body { 
+                           background-color: white !important; 
+                           margin: 0 !important; 
+                           padding: 0 !important;
+                           -webkit-print-color-adjust: exact !important;
+                           print-color-adjust: exact !important;
+                        }
+                        
+                        /* Strips the drop-shadow strictly inside the print renderer */
+                        #research-paper-container {
+                            box-shadow: none !important;
+                            border: none !important;
+                            margin: 0 !important;
+                            padding: 0 !important;
+                            width: 100% !important;
+                            max-width: 100% !important;
+                            height: auto !important;
+                        }
+                        
+                        /* Bulletproof vertical gap slicing overrides */
+                        svg, img, table, blockquote, pre {
+                            page-break-inside: avoid !important;
+                            break-inside: avoid !important;
+                            display: block;
+                        }
+                        h1, h2, h3, h4, table > thead {
+                            page-break-after: avoid !important;
+                            break-after: avoid !important;
+                        }
+                    </style>
+                </head>
+                <body>
+                    ${printContent}
+                </body>
+            </html>
+        `);
+        iframeDoc.close();
+        
+        // Process styles & assets natively, then safely invoke nested iframe print prompt
+        setTimeout(() => {
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
+            
+            // Garbage cleanup
+            setTimeout(() => document.body.removeChild(iframe), 3000);
+        }, 1000);
+        
+    }, [post.title])
 
     return (
         <Button

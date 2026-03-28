@@ -2,6 +2,7 @@ import { client, queries, getImageUrl, urlFor } from '@/lib/sanity/client'
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { tomorrow } from 'react-syntax-highlighter/dist/cjs/styles/prism'
 import { Navigation } from '@/components/layout/Navigation'
@@ -118,78 +119,65 @@ export default async function PostPage({
             )}
           </header>
 
-          {/* Content */}
-          <div className="prose prose-brutal prose-lg max-w-none mb-12 break-words overflow-hidden">
-            <ReactMarkdown
-              components={{
-                img({ node, ...props }: any) {
-                  if (props.alt === 'Video') {
-                    return (
-                      <video
-                        src={props.src}
-                        controls
-                        className="w-full rounded-md border-2 border-black my-4"
-                      />
-                    )
-                  }
-                  return (
-                    <img
-                      {...props}
-                      className="w-full rounded-md border-2 border-black my-4"
-                      alt={props.alt}
-                    />
-                  )
-                },
-                code({ node, inline, className, children, ...props }: any) {
-                  const match = /language-(\w+)/.exec(className || '')
-                  return !inline && match ? (
-                    <SyntaxHighlighter
-                      style={tomorrow}
-                      language={match[1]}
-                      PreTag="div"
-                      className="border-2 border-black overflow-x-auto"
-                      {...props}
-                    >
-                      {String(children).replace(/\n$/, '')}
-                    </SyntaxHighlighter>
-                  ) : (
-                    <code
-                      className="bg-muted border border-black px-1 py-0.5 break-all"
-                      {...props}
-                    >
-                      {children}
-                    </code>
-                  )
-                },
-                h1: ({ children }) => (
-                  <h1 className="font-head text-3xl font-bold mt-8 mb-4 border-b-2 border-black pb-2">
-                    {children}
-                  </h1>
-                ),
-                h2: ({ children }) => (
-                  <h2 className="font-head text-2xl font-bold mt-6 mb-3">
-                    {children}
-                  </h2>
-                ),
-                h3: ({ children }) => (
-                  <h3 className="font-head text-xl font-bold mt-4 mb-2">
-                    {children}
-                  </h3>
-                ),
-                blockquote: ({ children }) => (
-                  <blockquote className="border-l-4 border-primary bg-primary/5 pl-4 py-2 my-4">
-                    {children}
-                  </blockquote>
-                ),
-                p: ({ children }) => (
-                  <p className="break-words overflow-wrap-break-word">
-                    {children}
-                  </p>
-                ),
-              }}
-            >
-              {post.content}
-            </ReactMarkdown>
+          {/* Content replaced as A4 Research Paper */}
+          <div id="research-paper-container" className="bg-[#ffffff] w-full text-[#000000] p-8 md:p-12 shadow-[8px_8px_0px_#000000] border-4 border-black relative mx-auto mb-12 font-serif overflow-y-auto overflow-x-hidden">
+            {/* Inner top meta line mapping to match Editor preview */}
+            <div className="mb-6 pb-6 border-b-2 border-[#d1d5db]">
+               <h1 className="font-head text-3xl font-bold uppercase text-center mb-4 text-[#000000] leading-tight">
+                 {post.title}
+               </h1>
+               <div className="text-center font-bold text-[14px] text-[#6b7280]">
+                 <p className="font-bold text-[14px] mb-1 whitespace-pre-wrap text-[#000000]">{post.author.name}</p>
+                 <p className="italic text-[#4b5563] whitespace-pre-wrap">Tier {post.author.tier} {tierEmojis[post.author.tier]} • {new Date(post.publishedAt).toLocaleDateString()}</p>
+               </div>
+            </div>
+
+            <div className="columns-1 md:columns-2 gap-8 text-justify text-[12px] leading-[1.6]">
+              <div className="prose prose-sm max-w-none font-serif [&_h1]:text-[13px] [&_h1]:font-bold [&_h1]:uppercase [&_h1]:text-center [&_h1]:my-6 [&_h1]:tracking-wider [&_h2]:text-[12px] [&_h2]:italic [&_h2]:mb-2 [&_h2]:mt-4 [&_p]:mb-4 [&_p]:text-justify [&_img]:mx-auto [&_img]:my-4 [&_img]:border [&_img]:border-[#e5e7eb] [&_table]:w-full [&_table]:text-[10px] [&_table]:break-inside-avoid [&_table]:my-6 [&_th]:border-y-2 [&_th]:border-[#1f2937] [&_th]:py-2 [&_td]:border-b [&_td]:border-[#d1d5db] [&_td]:py-2 [&_th]:font-bold [&_th]:uppercase [&_th]:bg-[#000000]/5 [&_svg]:max-w-full [&_svg]:h-auto [&_svg]:block">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    img({ node, ...props }: any) {
+                      if (props.alt === 'Video') {
+                        return <video src={props.src} controls className="w-full my-4" />
+                      }
+                      return (
+                        <span className="block text-center text-[10px] italic text-[#9ca3af] mb-6 mt-4 break-inside-avoid">
+                          <img {...props} className="w-full mb-2" alt={props.alt} />
+                          {props.alt}
+                        </span>
+                      )
+                    },
+                    code({ node, inline, className, children, ...props }: any) {
+                      const match = /language-(\w+)/.exec(className || '')
+                      if (!inline && match && match[1] === "svg") {
+                          return <div className="my-6 block text-center break-inside-avoid w-full overflow-hidden border border-[#e5e7eb] rounded-md p-1 shadow-[0_1px_2px_0_rgba(0,0,0,0.05)] bg-[#ffffff]" dangerouslySetInnerHTML={{__html: String(children)}} />;
+                      }
+                      return !inline && match ? (
+                        <SyntaxHighlighter
+                          style={tomorrow}
+                          language={match[1]}
+                          PreTag="div"
+                          className="w-full text-[10px]"
+                          {...props}
+                        >
+                          {String(children).replace(/\n$/, '')}
+                        </SyntaxHighlighter>
+                      ) : (
+                        <code className={className} {...props}>
+                          {children}
+                        </code>
+                      )
+                    },
+                    p({ node, children }) {
+                      return <p className="mb-4 indent-6">{children}</p>;
+                    }
+                  }}
+                >
+                  {`**ABSTRACT**\n\n${post.excerpt || "*No abstract provided.*"}\n\n**Keywords:** *${post.tags && post.tags.length ? post.tags.join(", ") : "N/A"}*\n\n${post.content}`}
+                </ReactMarkdown>
+              </div>
+            </div>
           </div>
 
           {/* Engagement Actions */}
