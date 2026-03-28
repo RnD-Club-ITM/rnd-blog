@@ -195,4 +195,37 @@ export const queries = {
         "user": user->{_id, name, avatar, tier, university, clerkId}
     }
   }`,
+
+  // Get upcoming events
+  getUpcomingEvents: `*[_type == "event" && startTime > now() && status == "approved"] | order(startTime asc) {
+    _id,
+    title,
+    slug,
+    description,
+    eventType,
+    requirements,
+    locationType,
+    location,
+    startTime,
+    endTime,
+    registrationLink,
+    image,
+    "organizer": organizer->{name, avatar}
+  }`,
+  // Get past events
+  getPastEvents: `*[_type == "event" && startTime < now() && status == "approved"] | order(startTime desc) {
+    _id,
+    title,
+    slug,
+    description,
+    eventType,
+    requirements,
+    locationType,
+    location,
+    startTime,
+    endTime,
+    registrationLink,
+    image,
+    "organizer": organizer->{name, avatar}
+  }`,
 };

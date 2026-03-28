@@ -1,6 +1,8 @@
 import { Navigation } from "@/components/layout/Navigation";
 import { Hero } from "@/components/landing/Hero";
 import { BentoGrid, BentoCard } from "@/components/landing/BentoGrid";
+import { Button } from "@/components/retroui/Button";
+import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { getOrCreateUser } from "@/lib/auth/user";
 import {
@@ -12,6 +14,7 @@ import {
   Layers,
   Lightbulb,
   Globe,
+  ArrowRight,
 } from "lucide-react";
 
 export default async function Home() {
@@ -145,6 +148,7 @@ export default async function Home() {
             </div>
           </div>
         </section>
+
 
         {/* Footer */}
         <footer className="border-t border-border bg-card py-12">

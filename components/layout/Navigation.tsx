@@ -15,12 +15,14 @@ import {
   FaUser,
   FaBars,
   FaXmark,
+  FaCalendar,
 } from "react-icons/fa6";
 import { motion, AnimatePresence } from "framer-motion";
 
 const navLinks = [
   { href: "/explore", label: "Explore", icon: <FaCompass /> },
   { href: "/quests", label: "Quests", icon: <FaScroll /> },
+  { href: "/events", label: "Events", icon: <FaCalendar /> },
   { href: "/collaborate", label: "Collaborate", icon: <FaHandshake /> },
   { href: "/leaderboard", label: "Leaderboard", icon: <FaTrophy /> },
   { href: "/admin", label: "Admin", icon: <FaUser /> },
@@ -54,11 +56,10 @@ export function Navigation() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`font-body transition-colors flex items-center gap-2 ${
-                  isActive(link.href)
-                    ? "text-primary border-b-2 border-primary"
-                    : "text-foreground hover:text-primary"
-                }`}
+                className={`font-body transition-colors flex items-center gap-2 ${isActive(link.href)
+                  ? "text-primary border-b-2 border-primary"
+                  : "text-foreground hover:text-primary"
+                  }`}
               >
                 {link.icon} {link.label}
               </Link>
@@ -157,11 +158,10 @@ export function Navigation() {
                     key={link.href}
                     href={link.href}
                     onClick={toggleMenu}
-                    className={`font-head text-xl font-bold flex items-center gap-3 p-2 rounded-lg transition-all ${
-                      isActive(link.href)
-                        ? "bg-primary/10 text-primary border-2 border-primary shadow-brutal-sm"
-                        : "text-foreground hover:bg-muted"
-                    }`}
+                    className={`font-head text-xl font-bold flex items-center gap-3 p-2 rounded-lg transition-all ${isActive(link.href)
+                      ? "bg-primary/10 text-primary border-2 border-primary shadow-brutal-sm"
+                      : "text-foreground hover:bg-muted"
+                      }`}
                   >
                     <span className="text-2xl">{link.icon}</span>
                     {link.label}

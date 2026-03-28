@@ -106,6 +106,43 @@ export default async function ProfilePage({
     { userId: user._id },
   );
 
+  // Fetch Event Tickets
+  const tickets = await client.fetch(
+    `*[_type == "eventRegistration" && (user._ref == $userId || clerkId == $clerkId)] | order(registeredAt desc) {
+      _id,
+      status,
+      ticketId,
+      registeredAt,
+      event->{
+        _id,
+        title,
+        slug,
+        startTime,
+        location,
+        locationType,
+        image
+      }
+    }`,
+    { userId: user._id, clerkId: user.clerkId },
+  );
+
+  // Fetch Organized Events
+  const organizedEvents = await client.fetch(
+    `*[_type == "event" && organizer._ref == $userId] | order(startTime desc) {
+      _id,
+      title,
+      slug,
+      description,
+      startTime,
+      endTime,
+      location,
+      locationType,
+      status,
+      image
+    }`,
+    { userId: user._id },
+  );
+
   const isOwnProfile =
     loggedInClerkId &&
     (loggedInClerkId === userId || loggedInClerkId === user.clerkId);
@@ -334,6 +371,8 @@ export default async function ProfilePage({
             user={user}
             posts={posts}
             collections={collections}
+            tickets={tickets}
+            organizedEvents={organizedEvents}
             isOwnProfile={!!isOwnProfile}
           />
         </div>
