@@ -28,7 +28,7 @@ const CardHeader = ({ className, ...props }: ICardProps) => {
 };
 
 const CardTitle = ({ className, ...props }: ICardProps) => {
-  return <Text as="h3" className={cn("mb-2", className)} {...props} />;
+  return <h3 className={cn("font-bold text-lg mb-2", className)} {...(props as any)} />;
 };
 
 const CardDescription = ({ className, ...props }: ICardProps) => (

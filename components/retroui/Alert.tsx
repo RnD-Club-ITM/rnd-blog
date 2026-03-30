@@ -35,12 +35,11 @@ const Alert = ({ className, variant, status, ...props }: IAlertProps) => (
 );
 Alert.displayName = "Alert";
 
-interface IAlertTitleProps extends HtmlHTMLAttributes<HTMLHeadingElement> {}
+interface IAlertTitleProps extends React.HTMLAttributes<HTMLHeadingElement> {}
 const AlertTitle = ({ className, ...props }: IAlertTitleProps) => (
-  <Text as="h5" className={cn(className)} {...props} />
+  <h5 className={cn("font-bold leading-none tracking-tight mb-1", className)} {...props} />
 );
 AlertTitle.displayName = "AlertTitle";
-
 interface IAlertDescriptionProps
   extends HtmlHTMLAttributes<HTMLParagraphElement> {}
 const AlertDescription = ({ className, ...props }: IAlertDescriptionProps) => (

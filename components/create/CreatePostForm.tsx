@@ -1074,10 +1074,10 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
       {/* Local Graph Builder Modal */}
       {isGraphModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-card w-full max-w-5xl rounded-xl shadow-2xl border-2 border-brutal p-6 flex flex-col md:flex-row gap-8 relative max-h-[90vh] overflow-hidden">
+          <div className="bg-card w-full max-w-5xl rounded-xl shadow-2xl border-2 border-brutal p-6 flex flex-col md:flex-row gap-8 relative h-[85vh] md:h-[600px] overflow-hidden">
             
             {/* Left: Controls */}
-            <div className="w-full md:w-1/3 flex flex-col space-y-4 h-full overflow-y-auto pr-2">
+            <div className="w-full md:w-1/3 flex flex-col h-full space-y-4 pr-2 min-h-0">
                <div className="flex justify-between items-center mb-2">
                  <h3 className="font-head text-xl font-bold flex items-center gap-2">
                     <BarChart className="w-5 h-5" /> Manual Data Canvas
@@ -1109,7 +1109,7 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
                   </div>
                </div>
                
-               <div className="flex-1 overflow-auto border-t border-border pt-4">
+               <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 border-t border-border pt-4 pr-1 snap-y pb-2">
                   <div className="flex justify-between items-center mb-2">
                      <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Data Points</label>
                      <button type="button" onClick={() => setGraphData([...graphData, {label: "New", value: "0"}])} className="text-xs font-bold text-primary flex items-center gap-1 hover:underline">
@@ -1118,14 +1118,14 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
                   </div>
                   <div className="space-y-2">
                      {graphData.map((d, i) => (
-                        <div key={i} className="flex gap-2">
-                           <Input className="flex-1" placeholder="Label" value={d.label} onChange={(e) => {
+                        <div key={i} className="flex gap-3 items-center">
+                           <Input className="w-2/3 min-w-0" placeholder="Label" value={d.label} onChange={(e) => {
                                const arr = [...graphData]; arr[i].label = e.target.value; setGraphData(arr);
                            }}/>
-                           <Input className="w-20" placeholder="Value" type="number" value={d.value} onChange={(e) => {
+                           <Input className="w-1/3 min-w-0" placeholder="Value" type="number" value={d.value} onChange={(e) => {
                                const arr = [...graphData]; arr[i].value = e.target.value; setGraphData(arr);
                            }}/>
-                           <button type="button" onClick={() => setGraphData(graphData.filter((_, idx) => idx !== i))} className="p-2 text-red-500 hover:bg-red-500/10 rounded-md">
+                           <button type="button" onClick={() => setGraphData(graphData.filter((_, idx) => idx !== i))} className="p-2 text-red-500 hover:bg-red-500/10 rounded-md shrink-0">
                               <Trash className="w-4 h-4" />
                            </button>
                         </div>
@@ -1136,10 +1136,10 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
             </div>
             
             {/* Right: Live Preview & Action */}
-            <div className="w-full md:w-2/3 flex flex-col space-y-4 h-[50vh] md:h-full">
-               <h3 className="font-bold text-sm uppercase text-muted-foreground tracking-widest hidden md:block">Real-Time Render</h3>
+            <div className="w-full md:w-2/3 flex flex-col space-y-4 h-full min-h-0">
+               <h3 className="font-bold text-sm uppercase text-muted-foreground tracking-widest hidden md:block shrink-0">Real-Time Render</h3>
                
-               <div className="flex-1 bg-[#ffffff] border-2 border-brutal rounded-xl p-4 flex items-center justify-center overflow-auto relative">
+               <div className="flex-1 bg-[#ffffff] border-2 border-brutal rounded-xl p-4 flex items-center justify-center overflow-auto relative min-h-0">
                   {generatedGraphSvg ? (
                      <div dangerouslySetInnerHTML={{ __html: generatedGraphSvg }} className="w-full h-full flex items-center justify-center [&>svg]:w-full [&>svg]:max-h-full [&>svg]:h-auto" />
                   ) : (
@@ -1167,8 +1167,8 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
       {/* Manual Workflow Builder Modal */}
       {isFlowModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-card w-full max-w-5xl rounded-xl shadow-2xl border-2 border-brutal p-6 flex flex-col md:flex-row gap-8 relative max-h-[90vh] overflow-hidden">
-            <div className="w-full md:w-1/3 flex flex-col space-y-4 h-full overflow-y-auto pr-2">
+          <div className="bg-card w-full max-w-5xl rounded-xl shadow-2xl border-2 border-brutal p-6 flex flex-col md:flex-row gap-8 relative h-[85vh] md:h-[600px] overflow-hidden">
+            <div className="w-full md:w-1/3 flex flex-col h-full space-y-4 pr-2 min-h-0">
                <div className="flex justify-between items-center mb-2">
                  <h3 className="font-head text-xl font-bold flex items-center gap-2">
                     <Workflow className="w-5 h-5" /> Flowchart Editor
@@ -1188,7 +1188,7 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
                   </select>
                </div>
                
-               <div className="flex-1 overflow-auto border-t border-border pt-4">
+               <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 border-t border-border pt-4 pr-1 snap-y pb-2">
                   <div className="flex justify-between items-center mb-2">
                      <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Process Steps</label>
                      <button type="button" onClick={() => setFlowSteps([...flowSteps, {label: "New Step", desc: ""}])} className="text-xs font-bold text-primary flex items-center gap-1 hover:underline">
@@ -1197,25 +1197,27 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
                   </div>
                   <div className="space-y-4">
                      {flowSteps.map((step, i) => (
-                        <div key={i} className="flex flex-col gap-2 p-3 border-2 border-border border-dashed rounded-md relative group">
-                           <Input className="font-bold text-sm" placeholder="Step Name" value={step.label} onChange={(e) => {
-                               const map = [...flowSteps]; map[i].label = e.target.value; setFlowSteps(map);
-                           }}/>
-                           <Input className="text-xs" placeholder="Description (optional)" value={step.desc} onChange={(e) => {
+                        <div key={i} className="flex flex-col gap-2 p-3 border-2 border-border border-dashed rounded-md group">
+                           <div className="flex gap-2 items-center">
+                             <Input className="flex-1 font-bold text-sm min-w-0" placeholder="Step Name" value={step.label} onChange={(e) => {
+                                 const map = [...flowSteps]; map[i].label = e.target.value; setFlowSteps(map);
+                             }}/>
+                             <button type="button" onClick={() => setFlowSteps(flowSteps.filter((_, idx) => idx !== i))} className="p-2 text-red-500 hover:bg-red-500/10 rounded-md shrink-0 transition-opacity opacity-0 group-hover:opacity-100">
+                                <Trash className="w-4 h-4" />
+                             </button>
+                           </div>
+                           <Input className="text-xs w-full" placeholder="Description (optional)" value={step.desc} onChange={(e) => {
                                const map = [...flowSteps]; map[i].desc = e.target.value; setFlowSteps(map);
                            }}/>
-                           <button type="button" onClick={() => setFlowSteps(flowSteps.filter((_, idx) => idx !== i))} className="absolute -top-3 -right-3 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
-                              <Trash className="w-3 h-3" />
-                           </button>
                         </div>
                      ))}
                   </div>
                </div>
             </div>
             
-            <div className="w-full md:w-2/3 flex flex-col space-y-4 h-[50vh] md:h-full">
-               <h3 className="font-bold text-sm uppercase text-muted-foreground tracking-widest hidden md:block">Real-Time Canvas</h3>
-               <div className="flex-1 bg-[#ffffff] border-2 border-brutal rounded-xl p-4 flex items-center justify-center overflow-auto relative">
+            <div className="w-full md:w-2/3 flex flex-col space-y-4 h-full min-h-0">
+               <h3 className="font-bold text-sm uppercase text-muted-foreground tracking-widest hidden md:block shrink-0">Real-Time Canvas</h3>
+               <div className="flex-1 bg-[#ffffff] border-2 border-brutal rounded-xl p-4 flex items-center justify-center overflow-auto relative min-h-0">
                   {generatedFlowSvg && (
                      <div dangerouslySetInnerHTML={{ __html: generatedFlowSvg }} className="w-full h-full flex items-center justify-center [&>svg]:w-full [&>svg]:max-h-full [&>svg]:h-auto" />
                   )}
