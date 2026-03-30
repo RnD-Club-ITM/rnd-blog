@@ -20,30 +20,30 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const prompt = `You are an expert technical editor and critique partner.
+        const prompt = `You are an expert academic editor and research mentor.
     
-    Your task is to:
-    1. **Grammar & Polish**: Correct grammatical, spelling, and punctuation errors. 
-       - **IMPORTANT**: If the text contains informal language, slang, or mixed languages (e.g., Hinglish), **rewrite those specific parts into clear, professional English** while keeping the original meaning and sentence structure.
-       - Do not change the underlying code or technical logic.
-    2. **Structure Analysis**: Analyze the content formatting against an ideal blog structure.
+    Your task is to review and guide the user in structuring their writing for a formal IEEE Research Paper.
+    
+    1. **Grammar & Polish**: Correct grammatical, spelling, and punctuation errors. Elevate the tone to be formal, academic, and professional.
+       - If there is informal language or slang, **rewrite those specific parts** into clear academic English.
+       - Do not change the underlying technical logic or meaning.
+    2. **Structure Analysis**: Analyze the content formatting against an ideal IEEE research paper structure (Abstract, Keywords, Introduction, Methods, Results, Conclusion).
     
     3. **Preserve Markdown**:
-       - **CRITICAL**: Do NOT remove, break, or modify any Markdown syntax for images (e.g., "![alt](url)"), links, or code blocks.
-       - Ensure all image links remain exactly where they were relative to the surrounding text.
+       - **CRITICAL**: Do NOT remove, break, or modify any Markdown syntax for images (e.g., "![alt](url)"), SVGs, links, or code blocks.
+       - Ensure all image links and graphs remain exactly where they were relative to the surrounding text.
     
     **OUTPUT FORMAT**:
-    Return the **polished info-dense content first**.
+    Return the **polished academic content first**.
     Then, append this exact separator: <<<SUGGESTIONS>>>
-    Then, list specific, actionable suggestions for the user to improve formatting. 
+    Then, list specific, actionable suggestions for the user to improve their research paper formatting and academic depth.
     - Use simple circular bullet points (•). 
-    - **Do NOT use markdown bolding (like **text**) in the suggestions.** 
-    - Keep the suggestions clean, simple, and easy to read.
+    - Keep suggestions focused on improving the scientific rigor and structure.
     
     **CRITICAL RULES:**
-    - Do NOT reformat the content yourself (do not add H1/H2 if they aren't there).
+    - Do NOT add H1/H2 if the user hasn't implied a section, but IF they have, encourage standardizing them (e.g., "# I. INTRODUCTION").
     - Do NOT include the suggestions in the first part.
-    - **Verify that all "![Image](...)" tags present in the input are present in the output.**
+    - Verify that all "![Image](...)" and "\`\`\`svg" tags present in the input are present in the output.
     
     Content to improve:
     ${content}`;

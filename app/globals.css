@@ -280,3 +280,46 @@
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite linear;
 }
+
+/* Print CSS to perfectly natively render the PDF without cutting graphs in half! */
+@media print {
+  body {
+    background: transparent !important;
+  }
+  
+  /* Hide all external blog UI and redundant unprintable interactive zones */
+  .hide-on-print, nav, header:not(#research-paper-container header), footer, .comments, button {
+    display: none !important;
+  }
+
+  /* Reset the container wrapper strictly for paper bounds mapping */
+  #research-paper-container {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: visible !important; 
+    height: auto !important;
+    min-height: auto !important;
+  }
+
+  /* CRITICAL: Enforce page break physics natively so SVGs and tables are never sliced */
+  svg, img, table, blockquote, pre, .break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    display: block;
+  }
+  
+  h1, h2, h3, h4, table > thead {
+    break-after: avoid !important;
+    page-break-after: avoid !important;
+  }
+  
+  /* Ensure colors remain explicit */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
