@@ -2,7 +2,7 @@
 
 **Ignite Ideas. Build Together. Prove Your Work.**
 
-SPARK is a peer-curated research and blogging platform built for Gen Z engineers. It combines authentic storytelling, verifiable portfolios, and a collaborative community where students can share their engineering projects, research, and innovations.
+SPARK is a peer-curated research and blogging platform built for Gen Z engineers. It combines authentic storytelling, verifiable portfolios, and a collaborative community where students can share their engineering projects, research, and innovations
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
 ![React](https://img.shields.io/badge/React-19-blue?logo=react)
