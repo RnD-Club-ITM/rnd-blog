@@ -98,6 +98,26 @@ export function PostCard({ post }: PostCardProps) {
   )
 }
 
+function VideoPreview({ src, poster, title }: { src: string, poster?: string | null, title: string }) {
+  return (
+    <div className="relative w-full aspect-video rounded-md overflow-hidden border-2 border-black mb-3 sm:mb-4 bg-muted/20">
+      <video
+        src={src.includes('#t=') ? src : `${src}#t=0.1`}
+        poster={poster || undefined}
+        muted
+        loop
+        playsInline
+        autoPlay
+        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+      />
+      {/* Subtle play indicator for visual feedback */}
+      <div className="absolute bottom-2 right-2 bg-black/40 backdrop-blur-sm p-1 rounded-full border border-white/20">
+        <BoltIcon className="w-3 h-3 text-white fill-white" />
+      </div>
+    </div>
+  )
+}
+
 function PostCardContent({ post, tierEmojis, tagColors }: { post: any, tierEmojis: string[], tagColors: Record<string, string> }) {
   const coverImage = post.coverImageUrl || (post.thumbnail ? getImageUrl(post.thumbnail) : null)
 
@@ -130,18 +150,11 @@ function PostCardContent({ post, tierEmojis, tagColors }: { post: any, tierEmoji
 
         {/* Cover Video or Image (Under Title) */}
         {post.videoThumbnail ? (
-          <div className="relative w-full aspect-video rounded-md overflow-hidden border-2 border-black mb-3 sm:mb-4 bg-muted/20">
-            <video
-              key={post.videoThumbnail}
-              autoPlay
-              loop
-              controls
-              playsInline
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            >
-              <source src={post.videoThumbnail} type="video/mp4" />
-            </video>
-          </div>
+          <VideoPreview 
+            src={post.videoThumbnail} 
+            poster={coverImage} 
+            title={post.title} 
+          />
         ) : coverImage ? (
           <div className="relative w-full aspect-video rounded-md overflow-hidden border-2 border-black mb-3 sm:mb-4 bg-muted/20">
             <Image
