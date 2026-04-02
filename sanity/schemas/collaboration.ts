@@ -154,7 +154,7 @@ export const collaborationSchema = defineType({
             const { title, status, postedBy } = selection
             return {
                 title,
-                subtitle: `${status.toUpperCase()} - by ${postedBy || 'Unknown'}`,
+                subtitle: `${(status || 'open').toUpperCase()} - by ${postedBy || 'Unknown'}`,
             }
         },
     },

@@ -100,19 +100,20 @@ export function PostCard({ post }: PostCardProps) {
 
 function VideoPreview({ src, poster, title }: { src: string, poster?: string | null, title: string }) {
   return (
-    <div className="relative w-full aspect-video rounded-md overflow-hidden border-2 border-black mb-3 sm:mb-4 bg-muted/20">
+    <div className="relative w-full aspect-video rounded-md overflow-hidden border-2 border-black mb-3 sm:mb-4 bg-muted/20 group/video">
       <video
         src={src.includes('#t=') ? src : `${src}#t=0.1`}
         poster={poster || undefined}
         muted
-        loop
         playsInline
-        autoPlay
-        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+        preload="metadata"
+        className="w-full h-full object-cover transition-transform duration-500 group-hover/video:scale-105"
       />
-      {/* Subtle play indicator for visual feedback */}
-      <div className="absolute bottom-2 right-2 bg-black/40 backdrop-blur-sm p-1 rounded-full border border-white/20">
-        <BoltIcon className="w-3 h-3 text-white fill-white" />
+      {/* Play icon overlay to indicate it's a video post without playing it on the card */}
+      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/video:opacity-100 transition-opacity bg-black/20">
+         <div className="w-12 h-12 rounded-full bg-primary/90 flex items-center justify-center shadow-brutal border-2 border-black">
+            <BoltIcon className="w-6 h-6 text-primary-foreground fill-primary-foreground ml-0.5" />
+         </div>
       </div>
     </div>
   )

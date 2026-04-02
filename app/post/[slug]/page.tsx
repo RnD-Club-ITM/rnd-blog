@@ -129,6 +129,7 @@ export default async function PostPage({
                      key={post.videoThumbnail} 
                      autoPlay 
                      loop 
+                     muted
                      controls
                      playsInline
                      preload="auto"

@@ -9,7 +9,7 @@ export const postSchema = defineType({
             name: 'title',
             title: 'Title',
             type: 'string',
-            validation: (Rule) => Rule.required().min(10).max(100),
+            // validation removed
         }),
         defineField({
             name: 'slug',
@@ -19,27 +19,27 @@ export const postSchema = defineType({
                 source: 'title',
                 maxLength: 96,
             },
-            validation: (Rule) => Rule.required(),
+            // validation removed
         }),
         defineField({
             name: 'author',
             title: 'Author',
             type: 'reference',
             to: [{ type: 'user' }],
-            validation: (Rule) => Rule.required(),
+            // validation removed
         }),
         defineField({
             name: 'excerpt',
             title: 'Excerpt',
             type: 'text',
             rows: 3,
-            validation: (Rule) => Rule.max(200),
+            // No validation
         }),
         defineField({
             name: 'content',
             title: 'Content',
             type: 'markdown',
-            validation: (Rule) => Rule.required().min(200),
+            // validation removed
         }),
         defineField({
             name: 'thumbnail',
@@ -132,7 +132,7 @@ export const postSchema = defineType({
             const { title, author, status } = selection
             return {
                 title,
-                subtitle: `by ${author || 'Unknown'} - ${status}`,
+                subtitle: `by ${author || 'Unknown'} - ${status || 'Draft'}`,
             }
         },
     },
