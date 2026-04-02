@@ -6,7 +6,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { useUser } from '@clerk/nextjs'
 import { getImageUrl } from '@/lib/sanity/client'
 import { toast } from 'sonner'
-import { FaPaperPlane, FaCommentDots } from 'react-icons/fa6'
+import { Send, MessageSquare, Flame } from 'lucide-react'
 import { Button } from '@/components/retroui/Button'
 import { Card } from '@/components/retroui/Card'
 
@@ -76,7 +76,7 @@ export function Comments({ postId, initialComments }: CommentsProps) {
   return (
     <div  id="comments-section" className="border-2 border-black bg-card p-6">
       <h3 className="font-head text-2xl font-bold mb-6 flex items-center gap-2">
-        <FaCommentDots className="text-primary" /> Comments <span className="text-muted-foreground text-sm font-normal">({comments.length})</span>
+        <MessageSquare className="text-primary w-6 h-6" /> Comments <span className="text-muted-foreground text-sm font-normal">({comments.length})</span>
       </h3>
 
       {/* Comment Form */}
@@ -94,7 +94,7 @@ export function Comments({ postId, initialComments }: CommentsProps) {
             disabled={!user || isSubmitting || !newComment.trim()}
             className="font-bold border-2 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:shadow-[6px_6px_0_0_rgba(0,0,0,1)] bg-primary text-primary-foreground disabled:opacity-50 flex items-center gap-2"
           >
-            {isSubmitting ? 'Posting...' : <><FaPaperPlane /> Post Comment</>}
+            {isSubmitting ? 'Posting...' : <><Send size={18} /> Post Comment</>}
           </Button>
         </div>
       </form>
@@ -144,7 +144,7 @@ export function Comments({ postId, initialComments }: CommentsProps) {
 
         {comments.length === 0 && (
           <p className="text-center text-muted-foreground py-8 italic">
-            No comments yet. Be the first to spark a discussion! 🔥
+            <span className="flex items-center justify-center gap-2">No comments yet. Be the first to spark a discussion! <Flame className="w-5 h-5 text-orange-500" /></span>
           </p>
         )}
       </div>

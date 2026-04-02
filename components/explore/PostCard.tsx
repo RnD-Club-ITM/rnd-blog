@@ -6,11 +6,11 @@ import { getImageUrl, urlFor } from '@/lib/sanity/client'
 import { Badge } from '@/components/retroui/Badge'
 import { Card } from '@/components/retroui/Card'
 import { Button } from '@/components/retroui/Button'
-import { FaBolt, FaEye } from 'react-icons/fa6'
+// import { FaBolt, FaEye } from 'react-icons/fa6'
 import { SignedOut, SignedIn } from '@clerk/nextjs'
 import * as Dialog from '@radix-ui/react-dialog'
 import { BookmarkButton } from '@/components/collections/BookmarkButton'
-import { X } from 'lucide-react'
+import { X, Lock, Zap, Flame, Settings, Trophy, Eye, Zap as BoltIcon } from 'lucide-react'
 
 interface PostCardProps {
   post: {
@@ -20,6 +20,7 @@ interface PostCardProps {
     excerpt?: string
     thumbnail?: any
     coverImageUrl?: string
+    videoThumbnail?: string
     tags?: string[]
     sparkCount: number
     viewCount: number
@@ -73,7 +74,7 @@ export function PostCard({ post }: PostCardProps) {
                       </button>
                     </Dialog.Close>
                   </div>
-                  <div className="text-4xl mb-2">🔒</div>
+                  <div className="text-4xl mb-2 flex justify-center"><Lock className="w-12 h-12 text-primary" /></div>
                   <Dialog.Title className="text-2xl font-head font-bold">
                     Get Started to View Full Project
                   </Dialog.Title>
@@ -127,8 +128,21 @@ function PostCardContent({ post, tierEmojis, tagColors }: { post: any, tierEmoji
           </div>
         </div>
 
-        {/* Cover Image (Under Title) */}
-        {coverImage && (
+        {/* Cover Video or Image (Under Title) */}
+        {post.videoThumbnail ? (
+          <div className="relative w-full aspect-video rounded-md overflow-hidden border-2 border-black mb-3 sm:mb-4 bg-muted/20">
+            <video
+              key={post.videoThumbnail}
+              autoPlay
+              loop
+              controls
+              playsInline
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            >
+              <source src={post.videoThumbnail} type="video/mp4" />
+            </video>
+          </div>
+        ) : coverImage ? (
           <div className="relative w-full aspect-video rounded-md overflow-hidden border-2 border-black mb-3 sm:mb-4 bg-muted/20">
             <Image
               src={coverImage}
@@ -137,7 +151,7 @@ function PostCardContent({ post, tierEmojis, tagColors }: { post: any, tierEmoji
               className="object-cover group-hover:scale-105 transition-transform duration-300"
             />
           </div>
-        )}
+        ) : null}
 
         {/* Excerpt */}
         {post.excerpt && (
@@ -165,7 +179,10 @@ function PostCardContent({ post, tierEmojis, tagColors }: { post: any, tierEmoji
               <p className="text-sm font-semibold truncate max-w-[80px] sm:max-w-none">{post.author.name}</p>
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <p className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
-                  T{post.author.tier}
+                  T{post.author.tier} {post.author.tier === 1 && <Zap className="w-3 h-3 inline text-yellow-500" />}
+                  {post.author.tier === 2 && <Flame className="w-3 h-3 inline text-orange-500" />}
+                  {post.author.tier === 3 && <Settings className="w-3 h-3 inline text-slate-500" />}
+                  {post.author.tier === 4 && <Trophy className="w-3 h-3 inline text-yellow-600" />}
                 </p>
                 {post.isEdited && <span className="text-[8px] sm:text-[10px] bg-muted px-1 py-0.5 rounded text-muted-foreground font-medium uppercase">(edited)</span>}
               </div>
@@ -175,10 +192,10 @@ function PostCardContent({ post, tierEmojis, tagColors }: { post: any, tierEmoji
           {/* Stats */}
           <div className="flex items-center gap-2 sm:gap-3 font-medium text-[10px] sm:text-sm">
             <span className="flex items-center gap-1 text-primary">
-              <FaBolt className="w-3 h-3 sm:w-4 sm:h-4" /> {post.sparkCount || 0}
+              <BoltIcon className="w-3 h-3 sm:w-4 sm:h-4" /> {post.sparkCount || 0}
             </span>
             <span className="flex items-center gap-1 text-muted-foreground">
-              <FaEye className="w-3 h-3 sm:w-4 sm:h-4" /> {post.viewCount || 0}
+              <Eye className="w-3 h-3 sm:w-4 sm:h-4" /> {post.viewCount || 0}
             </span>
           </div>
         </div>

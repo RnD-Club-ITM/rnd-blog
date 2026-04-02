@@ -55,6 +55,16 @@ export const postSchema = defineType({
             type: 'url',
         }),
         defineField({
+            name: 'videoThumbnail',
+            title: 'Video Thumbnail URL (CDN)',
+            type: 'url',
+        }),
+        defineField({
+            name: 'authorDetails',
+            title: 'Custom Author & Affiliations',
+            type: 'text',
+        }),
+        defineField({
             name: 'tags',
             title: 'Tags',
             type: 'array',

@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { Button } from '@/components/retroui/Button'
+import { Zap } from 'lucide-react'
+import { toast } from 'sonner'
 
 export function SparkButton({
   postId,
@@ -18,7 +20,7 @@ export function SparkButton({
 
   const handleSpark = async () => {
     if (!user) {
-      alert('Please sign in to spark posts!')
+      toast.error('Please sign in to spark posts!')
       return
     }
 
@@ -45,7 +47,7 @@ export function SparkButton({
         // Revert on error
         setIsSparked(false)
         setSparkCount((prev) => prev - 1)
-        alert('Failed to spark post. Please try again.')
+        toast.error('Failed to spark post. Please try again.')
       }
     } catch (error) {
       console.error('Error sparking post:', error)
@@ -65,7 +67,7 @@ export function SparkButton({
           }`}
       >
         <div className={`flex items-center gap-2 ${isAnimating ? 'animate-spark-pulse' : ''}`}>
-          <span className="text-2xl leading-none">⚡</span>
+          <Zap className={`w-5 h-5 ${isSparked ? 'fill-primary-foreground text-primary-foreground' : 'text-muted-foreground'}`} />
           <span className="font-head font-bold text-lg">
             {sparkCount}
           </span>

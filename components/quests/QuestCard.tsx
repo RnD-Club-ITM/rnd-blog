@@ -7,7 +7,7 @@ import Image from 'next/image'
 import { useUser } from '@clerk/nextjs'
 import { getImageUrl, urlFor } from '@/lib/sanity/client'
 import { toast } from 'sonner'
-import { FaRocket, FaClock, FaTrophy, FaUsers } from 'react-icons/fa6'
+import { Rocket, Clock, Trophy, Users } from 'lucide-react'
 import { Badge } from '@/components/retroui/Badge'
 import { Card } from '@/components/retroui/Card'
 import { Button } from '@/components/retroui/Button'
@@ -128,16 +128,16 @@ export function QuestCard({ quest, isJoined }: QuestCardProps & { isJoined: bool
         {/* Stats */}
         <div className="flex items-center justify-between py-3 border-t-2 border-black mb-4">
           <div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1"><FaTrophy /> Reward</p>
+            <p className="text-xs text-muted-foreground flex items-center gap-1"><Trophy className="w-3 h-3" /> Reward</p>
             <p className="font-bold text-primary">+{quest.rewardPoints} pts</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1"><FaUsers /> Participants</p>
+            <p className="text-xs text-muted-foreground flex items-center gap-1"><Users className="w-3 h-3" /> Participants</p>
             <p className="font-bold">{quest.participantCount + (hasJoinedOptimistic && !isJoined ? 1 : 0)}</p>
           </div>
           {quest.daysRemaining && (
             <div>
-              <p className="text-xs text-muted-foreground flex items-center gap-1"><FaClock /> Time Left</p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" /> Time Left</p>
               <p className="font-bold">{quest.daysRemaining}d</p>
             </div>
           )}
@@ -173,9 +173,9 @@ export function QuestCard({ quest, isJoined }: QuestCardProps & { isJoined: bool
           {isJoining ? (
             'Joining...'
           ) : hasJoinedOptimistic ? (
-            <>Enter Quest 🚀</>
+            <span className="flex items-center gap-2">Enter Quest <Rocket className="w-4 h-4" /></span>
           ) : (
-            <><FaRocket /> Join Quest</>
+            <><Rocket className="w-4 h-4" /> Join Quest</>
           )}
         </Button>
       </div>

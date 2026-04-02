@@ -1,6 +1,8 @@
 'use client'
 
 import { Button } from '@/components/retroui/Button'
+import { Link2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 export function ShareButton({ title, slug }: { title: string; slug: string }) {
   const handleShare = async () => {
@@ -22,7 +24,7 @@ export function ShareButton({ title, slug }: { title: string; slug: string }) {
       // Fallback to copy to clipboard
       try {
         await navigator.clipboard.writeText(shareUrl)
-        alert('Link copied to clipboard!')
+        toast.success('Link copied to clipboard!')
       } catch (err) {
         // Fallback for older browsers
         const textArea = document.createElement('textarea')
@@ -31,7 +33,7 @@ export function ShareButton({ title, slug }: { title: string; slug: string }) {
         textArea.select()
         document.execCommand('copy')
         document.body.removeChild(textArea)
-        alert('Link copied to clipboard!')
+        toast.success('Link copied to clipboard!')
       }
     }
   }
@@ -42,7 +44,7 @@ export function ShareButton({ title, slug }: { title: string; slug: string }) {
       onClick={handleShare}
       className="border-2 border-black hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)]"
     >
-      🔗 Share
+      <Link2 className="w-5 h-5 mr-2" /> Share
     </Button>
   )
 }

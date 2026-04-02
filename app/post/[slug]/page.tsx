@@ -15,6 +15,7 @@ import { Badge } from '@/components/retroui/Badge'
 import { Button } from '@/components/retroui/Button'
 import { DownloadPdfButton } from '@/components/post/DownloadPdfButton'
 import { BookmarkButton } from '@/components/collections/BookmarkButton'
+import { Zap, Eye, Flame, Settings, Trophy } from 'lucide-react'
 
 export default async function PostPage({
   params,
@@ -32,7 +33,16 @@ export default async function PostPage({
   await client.patch(post._id).inc({ viewCount: 1 }).commit()
 
   const tierNames = ['', 'Spark Initiate', 'Idea Igniter', 'Forge Master', 'RnD Fellow']
-  const tierEmojis = ['', '⚡', '🔥', '⚙️', '🏆']
+  
+  const getTierIcon = (tier: number) => {
+    switch (tier) {
+      case 1: return <Zap className="w-4 h-4 inline text-yellow-500" />;
+      case 2: return <Flame className="w-4 h-4 inline text-orange-500" />;
+      case 3: return <Settings className="w-4 h-4 inline text-slate-500" />;
+      case 4: return <Trophy className="w-4 h-4 inline text-yellow-600" />;
+      default: return null;
+    }
+  };
 
   return (
     <>
@@ -78,7 +88,7 @@ export default async function PostPage({
                 <div className="min-w-0">
                   <p className="font-head font-bold text-base sm:text-lg truncate">{post.author.name}</p>
                   <p className="text-xs sm:text-sm text-muted-foreground">
-                    Tier {post.author.tier} {tierEmojis[post.author.tier]} •{' '}
+                    Tier {post.author.tier} {getTierIcon(post.author.tier)} •{' '}
                     <span className="whitespace-nowrap">{new Date(post.publishedAt).toLocaleDateString()}</span>
                   </p>
                 </div>
@@ -88,10 +98,10 @@ export default async function PostPage({
               <div className="flex items-center justify-between sm:justify-end gap-4 pt-2 sm:pt-0 border-t border-black/5 sm:border-0">
                 <div className="flex items-center gap-4">
                   <span className="flex items-center gap-1.5 font-bold">
-                    ⚡ {post.sparkCount}
+                    <Zap className="w-4 h-4 text-primary" /> {post.sparkCount}
                   </span>
                   <span className="flex items-center gap-1.5 text-muted-foreground">
-                    👁 {post.viewCount}
+                    <Eye className="w-4 h-4" /> {post.viewCount}
                   </span>
                 </div>
                 <EditAction authorClerkId={post.author.clerkId} slug={post.slug.current} />
@@ -111,8 +121,26 @@ export default async function PostPage({
               </div>
             )}
 
-            {/* Excerpt */}
-            {post.excerpt && (
+            {/* Video Hero or Excerpt */}
+            {post.videoThumbnail ? (
+               <div className="mb-10 w-full rounded-2xl overflow-hidden border-4 border-slate-900 shadow-2xl bg-black aspect-video relative group flex items-center justify-center">
+                  <video 
+                     key={post.videoThumbnail} 
+                     autoPlay 
+                     loop 
+                     controls
+                     playsInline
+                     preload="auto"
+                     className="w-full h-full object-cover group-hover:opacity-100 transition-opacity"
+                  >
+                     <source 
+                        src={post.videoThumbnail} 
+                        type="video/mp4" 
+                     />
+                     Your browser does not support the video tag.
+                  </video>
+               </div>
+            ) : post.excerpt && (
               <p className="text-lg text-muted-foreground italic mb-8 border-l-4 border-primary pl-4">
                 {post.excerpt}
               </p>
@@ -120,61 +148,69 @@ export default async function PostPage({
           </header>
 
           {/* Content replaced as A4 Research Paper */}
-          <div id="research-paper-container" className="bg-[#ffffff] w-full text-[#000000] p-8 md:p-12 shadow-[8px_8px_0px_#000000] border-4 border-black relative mx-auto mb-12 font-serif overflow-y-auto overflow-x-hidden">
-            {/* Inner top meta line mapping to match Editor preview */}
-            <div className="mb-6 pb-6 border-b-2 border-[#d1d5db]">
-               <h1 className="font-head text-3xl font-bold uppercase text-center mb-4 text-[#000000] leading-tight">
-                 {post.title}
-               </h1>
-               <div className="text-center font-bold text-[14px] text-[#6b7280]">
-                 <p className="font-bold text-[14px] mb-1 whitespace-pre-wrap text-[#000000]">{post.author.name}</p>
-                 <p className="italic text-[#4b5563] whitespace-pre-wrap">Tier {post.author.tier} {tierEmojis[post.author.tier]} • {new Date(post.publishedAt).toLocaleDateString()}</p>
-               </div>
-            </div>
+            <div id="research-paper-container" className="bg-[#ffffff] w-full text-[#000000] p-6 md:p-10 shadow-[8px_8px_0px_#000000] border-4 border-black relative mx-auto mb-12 font-serif overflow-y-auto overflow-x-hidden" style={{ fontFamily: 'Times New Roman, Times, serif' }}>
+              {/* Inner top meta line mapping to match Editor preview */}
+              <div className="mb-6 pb-4 border-b-2 border-gray-200">
+                 <h1 className="text-[24px] font-bold text-center mb-4 text-[#000000] leading-tight font-serif uppercase tracking-tight">
+                   {post.title}
+                 </h1>
+                  <div className="text-center text-[11px] text-gray-700 mb-6 font-serif">
+                    {post.authorDetails?.split('\n').map((line: string, i: number) => (
+                      <p key={i} className="whitespace-pre-wrap mb-1">
+                        {line}
+                      </p>
+                    ))}
+                  </div>
+              </div>
 
-            <div className="columns-1 md:columns-2 gap-8 text-justify text-[12px] leading-[1.6]">
-              <div className="prose prose-sm max-w-none font-serif [&_h1]:text-[13px] [&_h1]:font-bold [&_h1]:uppercase [&_h1]:text-center [&_h1]:my-6 [&_h1]:tracking-wider [&_h2]:text-[12px] [&_h2]:italic [&_h2]:mb-2 [&_h2]:mt-4 [&_p]:mb-4 [&_p]:text-justify [&_img]:mx-auto [&_img]:my-4 [&_img]:border [&_img]:border-[#e5e7eb] [&_table]:w-full [&_table]:text-[10px] [&_table]:break-inside-avoid [&_table]:my-6 [&_th]:border-y-2 [&_th]:border-[#1f2937] [&_th]:py-2 [&_td]:border-b [&_td]:border-[#d1d5db] [&_td]:py-2 [&_th]:font-bold [&_th]:uppercase [&_th]:bg-[#000000]/5 [&_svg]:max-w-full [&_svg]:h-auto [&_svg]:block">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    img({ node, ...props }: any) {
-                      if (props.alt === 'Video') {
-                        return <video src={props.src} controls className="w-full my-4" />
+              <div className="columns-1 md:columns-2 gap-8 text-justify text-[11px] leading-[1.4] font-serif">
+                <div className="prose prose-sm max-w-none font-serif [&_h1]:text-[12px] [&_h1]:font-bold [&_h1]:uppercase [&_h1]:text-center [&_h1]:my-4 [&_h1]:tracking-wide [&_h2]:text-[11px] [&_h2]:font-bold [&_h2]:italic [&_h2]:mb-1 [&_h2]:mt-3 [&_p]:mb-2 [&_p]:text-justify [&_img]:mx-auto [&_img]:my-3 [&_img]:border [&_img]:border-gray-200 [&_table]:w-full [&_table]:text-[9px] [&_table]:break-inside-avoid [&_table]:my-4 [&_th]:border-y-2 [&_th]:border-gray-800 [&_th]:py-1 [&_td]:border-b [&_td]:border-gray-300 [&_td]:py-1 [&_th]:font-bold [&_th]:uppercase [&_th]:bg-black/5 [&_svg]:max-w-full [&_svg]:h-auto [&_svg]:block">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      img({ node, ...props }: any) {
+                        if (props.alt === 'Video') {
+                          return <video src={props.src} controls className="w-full my-4" />
+                        }
+                        return (
+                          <span className="block text-center text-[9px] italic text-[#6b7280] mb-4 mt-2 break-inside-avoid">
+                            <img {...props} className="w-full mb-1" alt={props.alt} />
+                            {props.alt}
+                          </span>
+                        )
+                      },
+                      code({ node, inline, className, children, ...props }: any) {
+                        const match = /language-(\w+)/.exec(className || '')
+                        if (!inline && match && match[1] === "svg") {
+                            return <div className="my-4 block text-center break-inside-avoid w-full overflow-hidden border border-gray-100 rounded-md p-1 bg-white" dangerouslySetInnerHTML={{__html: String(children)}} />;
+                        }
+                        return !inline && match ? (
+                          <SyntaxHighlighter
+                            style={tomorrow}
+                            language={match[1]}
+                            PreTag="div"
+                            className="w-full text-[9px]"
+                            {...props}
+                          >
+                            {String(children).replace(/\n$/, '')}
+                          </SyntaxHighlighter>
+                        ) : (
+                          <code className={`${className} text-[9px] bg-gray-50 border border-gray-100 px-1 rounded`} {...props}>
+                            {children}
+                          </code>
+                        )
+                      },
+                      p({ node, children }) {
+                        const text = String(children?.[0] || "");
+                        const isCaption = text.startsWith("Fig") || text.startsWith("Table") || text.startsWith("Flowchart");
+                        if (isCaption) {
+                           return <p className="mb-4 mt-1 text-center font-bold text-[9px] uppercase tracking-tight">{children}</p>;
+                        }
+                        return <p className="mb-2 indent-4 text-justify leading-relaxed tracking-tight">{children}</p>;
                       }
-                      return (
-                        <span className="block text-center text-[10px] italic text-[#9ca3af] mb-6 mt-4 break-inside-avoid">
-                          <img {...props} className="w-full mb-2" alt={props.alt} />
-                          {props.alt}
-                        </span>
-                      )
-                    },
-                    code({ node, inline, className, children, ...props }: any) {
-                      const match = /language-(\w+)/.exec(className || '')
-                      if (!inline && match && match[1] === "svg") {
-                          return <div className="my-6 block text-center break-inside-avoid w-full overflow-hidden border border-[#e5e7eb] rounded-md p-1 shadow-[0_1px_2px_0_rgba(0,0,0,0.05)] bg-[#ffffff]" dangerouslySetInnerHTML={{__html: String(children)}} />;
-                      }
-                      return !inline && match ? (
-                        <SyntaxHighlighter
-                          style={tomorrow}
-                          language={match[1]}
-                          PreTag="div"
-                          className="w-full text-[10px]"
-                          {...props}
-                        >
-                          {String(children).replace(/\n$/, '')}
-                        </SyntaxHighlighter>
-                      ) : (
-                        <code className={className} {...props}>
-                          {children}
-                        </code>
-                      )
-                    },
-                    p({ node, children }) {
-                      return <p className="mb-4 indent-6">{children}</p>;
-                    }
-                  }}
-                >
-                  {`**ABSTRACT**\n\n${post.excerpt || "*No abstract provided.*"}\n\n**Keywords:** *${post.tags && post.tags.length ? post.tags.join(", ") : "N/A"}*\n\n${post.content}`}
+                    }}
+                  >
+                    {`**ABSTRACT**\n\n${post.excerpt || "*No abstract provided.*"}\n\n${post.content}`}
                 </ReactMarkdown>
               </div>
             </div>
@@ -219,7 +255,7 @@ export default async function PostPage({
                 <div className="min-w-0">
                   <p className="font-bold text-lg mb-1">{post.author.name}</p>
                   <p className="text-xs sm:text-sm text-muted-foreground mb-3">
-                    {tierNames[post.author.tier]} {tierEmojis[post.author.tier]}
+                    {tierNames[post.author.tier]} {getTierIcon(post.author.tier)}
                   </p>
                   <p className="text-sm leading-relaxed">{post.author.bio}</p>
                 </div>

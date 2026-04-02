@@ -34,6 +34,7 @@ export default async function ExplorePage({
     excerpt,
     thumbnail,
     coverImageUrl,
+    videoThumbnail,
     tags,
     "sparkCount": coalesce(sparkCount, 0),
     viewCount,

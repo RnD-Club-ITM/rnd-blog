@@ -6,6 +6,8 @@ import { useUser } from '@clerk/nextjs'
 import { Navigation } from '@/components/layout/Navigation'
 import { Button } from '@/components/retroui/Button'
 import { Card } from '@/components/retroui/Card'
+import { Rocket } from 'lucide-react'
+import { toast } from 'sonner'
 
 export default function CreateProjectPage() {
   const router = useRouter()
@@ -24,7 +26,7 @@ export default function CreateProjectPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) {
-      alert('Please sign in to post a project')
+      toast.error('Please sign in to post a project')
       return
     }
 
@@ -38,12 +40,12 @@ export default function CreateProjectPage() {
 
       if (!res.ok) throw new Error('Failed to create project')
 
-      alert('Project posted successfully! 🚀')
+      toast.success('Project posted successfully!')
       router.push('/collaborate')
       router.refresh()
     } catch (error) {
       console.error(error)
-      alert('Something went wrong')
+      toast.error('Something went wrong')
     } finally {
       setLoading(false)
     }
@@ -153,7 +155,9 @@ export default function CreateProjectPage() {
                 disabled={loading}
                 className="w-full py-4 text-lg font-bold border-brutal shadow-brutal hover:shadow-brutal-sm bg-primary text-primary-foreground"
               >
-                {loading ? 'Posting...' : 'Post Project 🚀'}
+                {loading ? 'Posting...' : (
+                  <span className="flex items-center gap-2">Post Project <Rocket className="w-5 h-5" /></span>
+                )}
               </Button>
             </form>
           </Card>
