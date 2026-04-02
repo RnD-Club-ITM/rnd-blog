@@ -7,25 +7,25 @@ import { SignedIn, SignedOut, UserButton, useUser } from "@clerk/nextjs";
 import { Button } from "@/components/retroui/Button";
 import { ThemeToggle } from "./ThemeToggle";
 import {
-  FaBolt,
-  FaCompass,
-  FaScroll,
-  FaHandshake,
-  FaTrophy,
-  FaUser,
-  FaBars,
-  FaXmark,
-  FaCalendar,
-} from "react-icons/fa6";
+  Zap,
+  Compass,
+  ScrollText,
+  Handshake,
+  Trophy,
+  User,
+  Menu,
+  X,
+  Calendar,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const navLinks = [
-  { href: "/explore", label: "Explore", icon: <FaCompass /> },
-  { href: "/quests", label: "Quests", icon: <FaScroll /> },
-  { href: "/events", label: "Events", icon: <FaCalendar /> },
-  { href: "/collaborate", label: "Collaborate", icon: <FaHandshake /> },
-  { href: "/leaderboard", label: "Leaderboard", icon: <FaTrophy /> },
-  { href: "/admin", label: "Admin", icon: <FaUser /> },
+  { href: "/explore", label: "Explore", icon: <Compass className="w-5 h-5" /> },
+  { href: "/quests", label: "Quests", icon: <ScrollText className="w-5 h-5" /> },
+  { href: "/events", label: "Events", icon: <Calendar className="w-5 h-5" /> },
+  { href: "/collaborate", label: "Collaborate", icon: <Handshake className="w-5 h-5" /> },
+  { href: "/leaderboard", label: "Leaderboard", icon: <Trophy className="w-5 h-5" /> },
+  { href: "/admin", label: "Admin", icon: <User className="w-5 h-5" /> },
 ];
 
 export function Navigation() {
@@ -47,7 +47,7 @@ export function Navigation() {
             href="/"
             className="font-head text-2xl font-bold flex items-center gap-1"
           >
-            SPARK <FaBolt className="text-primary text-xl" />
+            SPARK <Zap className="text-primary text-xl fill-primary" />
           </Link>
 
           {/* Desktop Navigation */}
@@ -97,7 +97,7 @@ export function Navigation() {
                 <UserButton.MenuItems>
                   <UserButton.Action
                     label="My Spark Profile"
-                    labelIcon={<FaUser />}
+                    labelIcon={<User className="w-4 h-4" />}
                     onClick={() => router.push(`/profile/${user?.id}`)}
                   />
                 </UserButton.MenuItems>
@@ -120,7 +120,7 @@ export function Navigation() {
               onClick={toggleMenu}
               className="p-2 md:hidden border-2 border-brutal rounded-lg bg-card shadow-brutal active:shadow-none transition-all"
             >
-              {isMenuOpen ? <FaXmark size={20} /> : <FaBars size={20} />}
+              {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
           </div>
         </div>
@@ -170,7 +170,7 @@ export function Navigation() {
 
                 <div className="mt-8 pt-8 border-t-2 border-border">
                   <p className="text-sm text-muted-foreground text-center font-body">
-                    ITM RnD Club • SPARK ⚡
+                    ITM RnD Club • SPARK <Zap className="inline-block w-4 h-4 text-primary fill-primary" />
                   </p>
                 </div>
               </div>

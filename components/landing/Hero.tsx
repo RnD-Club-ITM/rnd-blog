@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/retroui/Button";
 import { Badge } from "@/components/retroui/Badge";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles, Zap } from "lucide-react";
 
 export function Hero() {
   return (
@@ -46,7 +46,7 @@ export function Hero() {
                 size="lg"
                 className="bg-primary text-primary-foreground border-2 border-brutal shadow-[6px_6px_0px_0px_rgba(128,128,128,0.5)] hover:shadow-[2px_2px_0px_0px_rgba(128,128,128,0.5)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all text-lg px-8 py-6 h-auto font-head"
               >
-                Start Building ⚡
+                Start Building <Zap className="ml-2 w-5 h-5 inline-block" />
               </Button>
             </Link>
             <Link href="/explore">

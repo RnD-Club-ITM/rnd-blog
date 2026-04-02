@@ -15,14 +15,21 @@ export async function POST(req: NextRequest) {
 ${contextInfo}
 Write a COMPLETE research paper perfectly structured for IEEE format. Make the content dense and professional, at least 1500 words total across the sections. The user expects a fully formatted, publication-ready paper with visuals.
 
+CRITICAL CAPTIONING RULES:
+1. FIGURES (Graphs/Flowcharts): The caption MUST follow the visual (Graph or Flowchart) and be formatted exactly as: **Fig X.Y [Concise Title]**.
+2. TABLES: The caption MUST precede the table and be formatted exactly as: **Table X.Y [Concise Title]**.
+
 In your response, you MUST include:
-1. In the METHODS section: Include an SVG Process Flowchart. Use \`\`\`svg \\n <svg viewBox="0 0 1000 300" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="background-color: white;">...</svg> \\n \`\`\`. 
-   - CRITICAL: Make the flowchart a simple, STRICTLY linear left-to-right sequence (e.g., 4 or 5 boxes total). NO complex branching! 
-   - Draw standard boxes: \`<rect x="..." y="100" width="180" height="80" fill="#f8fafc" stroke="#3b82f6" stroke-width="3" rx="8"/>\`.
-   - Space the boxes out evenly (e.g., x=50, 270, 490, 710). 
-   - CRITICAL TEXT WRAPPING: SVG \`<text>\` doesn't wrap! For any labels over 18 characters, you MUST break it manually using \`<tspan>\`: \`<text x="140" y="130" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="bold" fill="#000"><tspan x="140" dy="0">Line 1</tspan><tspan x="140" dy="20">Line 2</tspan></text>\`.
-2. In the RESULTS section: Include a professional GFM Markdown Data Table (with at least 4 rows and 3 columns) comparing key metrics or hardware specifications.
-3. In the RESULTS section: Include an SVG Graph (Bar chart or Line chart) visualizing the data. For Bar chart, draw standard bars. For Line chart, draw a clean polyline. 
+1. In the METHODS section: Include an SVG Process Flowchart. Use \`\`\`svg \\n <svg viewBox="0 0 1000 400" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="background-color: white;">...</svg> \\n \`\`\`. 
+   Follow it immediately with: **Fig 2.1 Process Flowchart of [Process Name]**.
+   - CRITICAL: Use a viewBox height of 400 and place all boxes at y="150" with h="100". This ensures they are vertically centered and visible.
+   - Draw standard boxes: \`<rect x="..." y="150" width="200" height="100" fill="#f8fafc" stroke="#3b82f6" stroke-width="3" rx="12"/>\`.
+   - Space the boxes out evenly (e.g., x=20, 260, 500, 740). 
+   - CRITICAL TEXT WRAPPING: SVG \`<text>\` doesn't wrap! For any labels over 20 characters, you MUST break it manually using \`<tspan>\`: \`<text x="120" y="200" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="bold" fill="#000"><tspan x="120" dy="0">Line 1</tspan><tspan x="120" dy="25">Line 2</tspan></text>\`.
+2. In the RESULTS section: Include a professional GFM Markdown Data Table (with at least 4 rows and 3 columns) comparing key metrics.
+   Precede it immediately with: **Table 3.1 Experimental Metrics and Comparative Analysis**.
+3. In the RESULTS section: Include an SVG Graph (Bar chart or Line chart) visualizing the data. 
+   Follow it immediately with: **Fig 3.1 Graphical Analysis of [Variables]**.
    - Ensure the \`viewBox="0 0 800 400"\` correctly frames the chart. Don't crowd labels.
 
 Respond EXACTLY in this format, using the exact delimiters:
@@ -34,9 +41,9 @@ Respond EXACTLY in this format, using the exact delimiters:
 <<<INTRODUCTION>>>
 [Introductory text...]
 <<<METHODS>>>
-[Methods text... Include your SVG flowchart here]
+[Methods text... Include Fig 2.1 here]
 <<<RESULTS>>>
-[Results text... Include your Markdown table and SVG Graph here]
+[Results text... Include Table 3.1 and Fig 3.1 here]
 <<<CONCLUSION>>>
 [Conclusion text...]`;
 

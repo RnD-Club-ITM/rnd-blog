@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json()
-        const { title, excerpt, content, tags, userId, coverImageUrl } = body
+        const { title, excerpt, content, tags, userId, coverImageUrl, videoThumbnail, authorDetails } = body
 
         // Create post object
         const postDoc = {
@@ -19,6 +19,7 @@ export async function POST(request: NextRequest) {
             title,
             excerpt,
             content,
+            authorDetails,
             tags: (tags || []).map((t: string) => t.toLowerCase()),
             slug: {
                 _type: 'slug',
@@ -36,6 +37,7 @@ export async function POST(request: NextRequest) {
             viewCount: 0,
             publishedAt: new Date().toISOString(),
             ...(coverImageUrl && { coverImageUrl }), // Only add if present
+            ...(videoThumbnail && { videoThumbnail }),
         }
 
         const post = await client.create(postDoc)

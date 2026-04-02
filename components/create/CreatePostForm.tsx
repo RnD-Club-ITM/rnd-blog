@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -9,6 +9,7 @@ import { tomorrow } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import { Button } from "@/components/retroui/Button";
 import { Input } from "@/components/retroui/Input";
 import { toast } from "sonner";
+import { Link2 } from "lucide-react";
 import {
   Code,
   Sparkles,
@@ -28,7 +29,11 @@ import {
   ClipboardCheck,
   CheckCircle,
   XCircle,
-  FileCheck2
+  FileCheck2,
+  Video,
+  PenLine,
+  AlertTriangle,
+  Trophy
 } from "lucide-react";
 import Image from "next/image";
 import {
@@ -73,6 +78,7 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
     content: initialData?.content || "",
     tags: initialData?.tags || [],
     coverImageUrl: initialData?.coverImageUrl || "",
+    videoThumbnail: "", // New field for Cloudinary CDN URL
   });
 
   type SectionType = 'introduction' | 'methods' | 'results' | 'conclusion';
@@ -100,10 +106,29 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
     content: initialData?.content?.length || 0,
   });
 
-  const handleChange = (field: string, value: string) => {
+  const handleChange = async (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (field in charCounts) {
       setCharCounts((prev) => ({ ...prev, [field]: value.length }));
+    }
+
+    // Auto-Sync Drive to CDN
+    if (field === 'videoThumbnail' && value.includes('drive.google.com') && !value.includes('cloudinary.com')) {
+       setIsUploadingVideoThumbnail(true);
+       const toastId = toast.loading("Syncing Drive video to CDN Cache...");
+       try {
+          const res = await fetch(`/api/upload?url=${encodeURIComponent(value)}`, { method: 'POST' });
+          if (!res.ok) throw new Error("Sync failed. Check Drive sharing settings.");
+          const data = await res.json();
+          if (data.secure_url) {
+             setFormData(prev => ({ ...prev, videoThumbnail: data.secure_url }));
+             toast.success("Drive video linked to CDN successfully!", { id: toastId });
+          }
+       } catch (err: any) {
+          toast.error(err.message, { id: toastId });
+       } finally {
+          setIsUploadingVideoThumbnail(false);
+       }
     }
   };
 
@@ -192,30 +217,55 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
 
   useEffect(() => {
     if (!isGraphModalOpen) return;
-    const w = 800; const h = 400; const p = 60;
-    const cw = w - p * 2; const ch = h - p * 2;
-    const safeData = graphData.filter(d => d.label && !isNaN(Number(d.value)));
-    const maxV = Math.max(...safeData.map(d => Number(d.value)), 1);
+    const w = 800; const h = 500; const p = 80;
+    const cw = w - p * 2; const ch = h - p * 2.5;
+    const parseV = (v: string) => parseFloat(String(v).replace(/[^0-9.-]/g, '')) || 0;
+    const safeData = graphData.filter(d => d.label && !isNaN(parseV(d.value)));
+    const maxV = Math.max(...safeData.map(d => parseV(d.value)), 1);
 
-    let svg = `<svg viewBox="0 0 ${w} ${h}" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="background-color: white;">\n<rect width="100%" height="100%" fill="white" />\n${graphTitle ? `<text x="${w/2}" y="30" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="20" fill="#000">${graphTitle}</text>` : ""}\n<line x1="${p}" y1="${p}" x2="${p}" y2="${h - p}" stroke="#000" stroke-width="2" />\n<text x="20" y="${h/2}" transform="rotate(-90, 20, ${h/2})" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#000">${yAxisLabel}</text>\n<line x1="${p}" y1="${h - p}" x2="${w - p}" y2="${h - p}" stroke="#000" stroke-width="2" />\n<text x="${w/2}" y="${h - 15}" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#000">${xAxisLabel}</text>\n`;
+        let svg = `<svg viewBox="0 0 ${w} ${h}" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="background-color: white; border-radius: 8px;">\n<rect width="100%" height="100%" fill="#ffffff" />\n${graphTitle ? `<text x="${w/2}" y="35" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-weight="800" font-size="22" fill="#1e293b">${graphTitle.toUpperCase()}</text>` : ""}\n`;
+    
+    const colors = ["hsl(217, 91%, 60%)", "hsl(142, 71%, 45%)", "hsl(32, 95%, 44%)", "hsl(262, 83%, 58%)", "hsl(350, 89%, 60%)", "hsl(199, 89%, 48%)"];
 
-    if (graphType === "Bar Chart" && safeData.length > 0) {
-        const bw = (cw / safeData.length) * 0.6;
+    if (graphType === "Pie Chart" && safeData.length > 0) {
+        const cx = w/2.8; const cy = h/2 + 20; const r = 130;
+        const total = safeData.reduce((acc, d) => acc + parseV(d.value), 0) || 1;
+        let startAngle = 0;
         safeData.forEach((d, i) => {
-            const bh = (Number(d.value) / maxV) * ch;
-            const x = p + (i * (cw / safeData.length)) + ((cw / safeData.length) * 0.2);
-            const y = h - p - bh;
-            svg += `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" fill="#3b82f6" rx="4" />\n<text x="${x + bw/2}" y="${h - p + 20}" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#000">${d.label}</text>\n<text x="${x + bw/2}" y="${y - 10}" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#666">${d.value}</text>\n`;
+            const val = parseV(d.value);
+            const sliceAngle = (val / total) * 360;
+            const endAngle = startAngle + sliceAngle;
+            const x1 = cx + r * Math.cos(Math.PI * (startAngle-90) / 180);
+            const y1 = cy + r * Math.sin(Math.PI * (startAngle-90) / 180);
+            const x2 = cx + r * Math.cos(Math.PI * (endAngle-90) / 180);
+            const y2 = cy + r * Math.sin(Math.PI * (endAngle-90) / 180);
+            const largeArc = sliceAngle > 180 ? 1 : 0;
+            svg += `<path d="M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z" fill="${colors[i % colors.length]}" stroke="white" stroke-width="2" />\n`;
+            const ly = h/2 - (safeData.length * 15) + (i * 30) + 40;
+            svg += `<rect x="${w - 220}" y="${ly}" width="15" height="15" fill="${colors[i % colors.length]}" rx="3" />\n<text x="${w - 195}" y="${ly + 12}" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#475569">${d.label} (${Math.round(val/total*100)}%)</text>\n`;
+            startAngle += sliceAngle;
         });
-    } else if (graphType === "Line Chart" && safeData.length > 0) {
-        const space = cw / Math.max(safeData.length - 1, 1);
-        const pts = safeData.map((d, i) => `${p + (i * space)},${h - p - ((Number(d.value) / maxV) * ch)}`).join(" ");
-        svg += `<polyline points="${pts}" fill="none" stroke="#ef4444" stroke-width="3" />\n`;
-        safeData.forEach((d, i) => {
-            const cx = p + (i * space);
-            const cy = h - p - ((Number(d.value) / maxV) * ch);
-            svg += `<circle cx="${cx}" cy="${cy}" r="5" fill="#ef4444" />\n<text x="${cx}" y="${h - p + 20}" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#000">${d.label}</text>\n<text x="${cx}" y="${cy - 12}" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#666">${d.value}</text>\n`;
-        });
+    } else {
+        svg += `<line x1="${p}" y1="${p + 20}" x2="${p}" y2="${h - p * 1.5}" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="4" />\n<text x="30" y="${(h - p * 1.5)/2 + p/2}" transform="rotate(-90, 30, ${(h - p * 1.5)/2 + p/2})" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700" font-size="12" fill="#64728b" letter-spacing="1">{ ${yAxisLabel.toUpperCase()} }</text>\n<line x1="${p}" y1="${h - p * 1.5}" x2="${w - p}" y2="${h - p * 1.5}" stroke="#1e293b" stroke-width="2" />\n<text x="${w/2}" y="${h - 15}" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700" font-size="12" fill="#64728b" letter-spacing="1">{ ${xAxisLabel.toUpperCase()} }</text>\n`;
+        const rotationVal = safeData.length > 3 ? 45 : 0;
+        if (graphType === "Bar Chart") {
+            const bw = (cw / safeData.length) * 0.6;
+            safeData.forEach((d, i) => {
+                const val = parseV(d.value);
+                const bh = (val / maxV) * ch;
+                const x = p + (i * (cw / safeData.length)) + ((cw / safeData.length) * 0.2);
+                const y = h - p * 1.5 - bh;
+                svg += `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" fill="${colors[i % colors.length]}" rx="4" />\n<text x="${x + bw/2}" y="${h - p * 1.5 + 20}" ${rotationVal ? `transform="rotate(${rotationVal}, ${x+bw/2}, ${h-p*1.5+20})"` : ""} text-anchor="${rotationVal ? 'start' : 'middle'}" font-family="Inter, sans-serif" font-weight="600" font-size="11" fill="#1e293b">${d.label}</text>\n<text x="${x + bw/2}" y="${y - 10}" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="12" fill="#1e293b">${d.value}</text>\n`;
+            });
+        } else if (graphType === "Line Chart") {
+            const space = cw / Math.max(safeData.length - 1, 1);
+            const pts = safeData.map((d, i) => `${p + (i * space)},${h - p - ((parseV(d.value) / maxV) * ch)}`).join(" ");
+            svg += `<polyline points="${pts}" fill="none" stroke="#3b82f6" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" />\n`;
+            safeData.forEach((d, i) => {
+                const val = parseV(d.value); const cx = p + (i * space); const cy = h - p * 1.5 - ((val / maxV) * ch);
+                svg += `<circle cx="${cx}" cy="${cy}" r="6" fill="white" stroke="#3b82f6" stroke-width="3" />\n<text x="${cx}" y="${h - p * 1.5 + 20}" ${rotationVal ? `transform="rotate(${rotationVal}, ${cx}, ${h-p*1.5+20})"` : ""} text-anchor="${rotationVal ? 'start' : 'middle'}" font-family="Inter, sans-serif" font-weight="600" font-size="11" fill="#1e293b">${d.label}</text>\n<text x="${cx}" y="${cy - 15}" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="12" fill="#1e293b">${d.value}</text>\n`;
+            });
+        }
     }
     svg += `</svg>`;
     setGeneratedGraphSvg(svg);
@@ -223,17 +273,35 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
 
   // Flowchart GUI State
   const [isFlowModalOpen, setIsFlowModalOpen] = useState(false);
+  const [flowTitle, setFlowTitle] = useState("System Architecture");
   const [flowDirection, setFlowDirection] = useState("horizontal");
   const [flowSteps, setFlowSteps] = useState([{ label: "Data Prep", desc: "Clean Logs" }, { label: "Train", desc: "Neural Net" }]);
   const [generatedFlowSvg, setGeneratedFlowSvg] = useState("");
 
   // Table GUI State
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
+  const [tableTitle, setTableTitle] = useState("Experimental Results");
   const [tableData, setTableData] = useState<string[][]>([
     ["Model", "Accuracy", "F1"],
     ["SVM", "88%", "0.86"],
     ["Random Forest", "92%", "0.91"]
   ]);
+
+  // Caption Helper Logic
+  const sectionNumMap: Record<string, number> = {
+    introduction: 1,
+    methods: 2,
+    results: 3,
+    conclusion: 4
+  };
+
+  const getNextItemNumber = (type: 'Fig' | 'Table', targetSection: string) => {
+    const text = sections[targetSection as keyof typeof sections] || "";
+    const prefix = type === 'Fig' ? 'Fig' : 'Table';
+    const regex = new RegExp(`\\*\\*${prefix} \\d+\\.\\d+`, 'g');
+    const matches = text.match(regex);
+    return (matches?.length || 0) + 1;
+  };
 
   useEffect(() => {
      if (!isFlowModalOpen) return;
@@ -278,6 +346,8 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
+  const videoThumbnailInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingVideoThumbnail, setIsUploadingVideoThumbnail] = useState(false);
 
   // Helper to insert text at cursor position
   const insertTextAtCursor = (textToInsert: string) => {
@@ -389,6 +459,41 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
     }
   };
 
+  const handleVideoThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingVideoThumbnail(true);
+    const toastId = toast.loading("Uploading and converting video thumbnail...");
+
+    try {
+      const res = await fetch(`/api/upload?type=video`, {
+        method: "POST",
+        headers: {
+          "Content-Type": file.type || "application/octet-stream",
+        },
+        body: file,
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.details || err.error || "Video upload failed");
+      }
+
+      const data = await res.json();
+      if (data.secure_url) {
+        handleChange("videoThumbnail", data.secure_url);
+        toast.success("Video thumbnail converted to CDN link!", { id: toastId });
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Failed to upload video thumbnail", { id: toastId });
+    } finally {
+      setIsUploadingVideoThumbnail(false);
+      if (videoThumbnailInputRef.current) videoThumbnailInputRef.current.value = "";
+    }
+  };
+
   const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -490,6 +595,7 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
+          authorDetails,
           userId,
         }),
       });
@@ -527,33 +633,51 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
 
   const handleInsertGraph = () => {
       if (!generatedGraphSvg) return;
-      const svgGraph = `\n\n\`\`\`svg\n${generatedGraphSvg}\n\`\`\`\n\n`;
-      if (activeTab !== 'results') setActiveTab('results');
-      setSections((prev) => ({ ...prev, [activeTab]: prev[activeTab] + svgGraph }));
+      const targetSection = 'results';
+      const sectionNum = sectionNumMap[targetSection];
+      const itemNum = getNextItemNumber('Fig', targetSection);
+      const label = `Fig ${sectionNum}.${itemNum} ${graphTitle || 'Graph View'}`;
+      
+      const svgGraph = `\n\n\`\`\`svg\n${generatedGraphSvg}\n\`\`\`\n\n**${label}**\n\n`;
+      
+      if (activeTab !== targetSection) setActiveTab(targetSection as SectionType);
+      setSections((prev) => ({ ...prev, [targetSection]: prev[targetSection as keyof typeof sections] + svgGraph }));
       toast.success("Graph added successfully!");
       setIsGraphModalOpen(false);
   };
 
   const handleInsertFlow = () => {
       if (!generatedFlowSvg) return;
-      const svgCode = `\n\n\`\`\`svg\n${generatedFlowSvg}\n\`\`\`\n\n`;
-      if (activeTab !== 'methods') setActiveTab('methods'); // Process flows naturally fit Methods
-      setSections((prev) => ({ ...prev, [activeTab]: prev[activeTab] + svgCode }));
+      const targetSection = 'methods';
+      const sectionNum = sectionNumMap[targetSection];
+      const itemNum = getNextItemNumber('Fig', targetSection);
+      const label = `Fig ${sectionNum}.${itemNum} ${flowTitle || 'System Architecture'}`;
+
+      const svgCode = `\n\n\`\`\`svg\n${generatedFlowSvg}\n\`\`\`\n\n**${label}**\n\n`;
+      
+      if (activeTab !== targetSection) setActiveTab(targetSection as SectionType); 
+      setSections((prev) => ({ ...prev, [targetSection]: prev[targetSection as keyof typeof sections] + svgCode }));
       toast.success("Flowchart added successfully!");
       setIsFlowModalOpen(false);
   };
 
   const insertMarkdownTable = () => {
     if (tableData.length === 0 || tableData[0].length === 0) return;
-    let md = "\n\n";
+    const targetSection = 'results';
+    const sectionNum = sectionNumMap[targetSection];
+    const itemNum = getNextItemNumber('Table', targetSection);
+    const label = `Table ${sectionNum}.${itemNum} ${tableTitle || 'Experimental Data'}`;
+
+    let md = `\n\n**${label}**\n\n`; // Table caption ABOVE
     md += "| " + tableData[0].join(" | ") + " |\n"; // Header
     md += "| " + tableData[0].map(() => "---").join(" | ") + " |\n"; // Separator
     for (let i = 1; i < tableData.length; i++) {
         md += "| " + tableData[i].join(" | ") + " |\n"; // Body
     }
     md += "\n";
-    if (activeTab !== 'results') setActiveTab('results');
-    setSections((prev) => ({ ...prev, [activeTab]: prev[activeTab] + md }));
+    
+    if (activeTab !== targetSection) setActiveTab(targetSection as SectionType);
+    setSections((prev) => ({ ...prev, [targetSection]: prev[targetSection as keyof typeof sections] + md }));
     setIsTableModalOpen(false);
   };
 
@@ -694,6 +818,47 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
                   ))}
                 </div>
               </div>
+
+              {/* Video Thumbnail (Cloudinary) */}
+              <div>
+                <label className="block font-semibold mb-2 text-sm uppercase tracking-wide">
+                  Video Thumbnail (Premium CDN Cover)
+                </label>
+                <div className="flex gap-2">
+                   <div className="relative flex-1">
+                      <Input
+                        type="text"
+                        value={formData.videoThumbnail}
+                        onChange={(e) => handleChange("videoThumbnail", e.target.value)}
+                        placeholder="Upload a video or paste CDN URL..."
+                        className="pr-10"
+                      />
+                      {isUploadingVideoThumbnail && (
+                         <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                         </div>
+                      )}
+                   </div>
+                   <Button 
+                     type="button" 
+                     variant="outline" 
+                     onClick={() => videoThumbnailInputRef.current?.click()}
+                     disabled={isUploadingVideoThumbnail}
+                     className="border-brutal bg-white hover:bg-muted"
+                     title="Upload Video File"
+                   >
+                     {isUploadingVideoThumbnail ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
+                   </Button>
+                   <input
+                      type="file"
+                      ref={videoThumbnailInputRef}
+                      className="hidden"
+                      accept="video/*"
+                      onChange={handleVideoThumbnailUpload}
+                   />
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1">Upload any video format. It will be automatically converted to a high-speed CDN link for your paper's cover.</p>
+              </div>
             </div>
 
             {/* Content Editor */}
@@ -806,8 +971,18 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
                       });
                       if (!res.ok) throw new Error("Graph generation failed");
                       const data = await res.json();
-                      insertTextAtCursor("\\n```svg\\n" + data.svg + "\\n```\\n");
-                      toast.success("Graph added successfully!", { id: toastId });
+                      
+                      const targetSection = 'results';
+                      const sectionNum = sectionNumMap[targetSection];
+                      const itemNum = getNextItemNumber('Fig', targetSection);
+                      const label = `Fig ${sectionNum}.${itemNum} ${data.title || 'Data Analysis'}`;
+                      
+                      const svgMarkdown = `\n\n\`\`\`svg\n${data.svg}\n\`\`\`\n\n**${label}**\n\n`;
+                      
+                      if (activeTab !== targetSection) setActiveTab(targetSection as SectionType);
+                      setSections((prev) => ({ ...prev, [targetSection]: prev[targetSection as keyof typeof sections] + svgMarkdown }));
+                      
+                      toast.success("AI Graph added successfully!", { id: toastId });
                     } catch (error: any) {
                       toast.error(error.message, { id: toastId });
                     } finally {
@@ -981,30 +1156,51 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
                 </div>
               </div>
 
-              <div className="border border-border/20 rounded-xl p-10 bg-[#ffffff] shadow-2xl min-h-[1056px] max-h-[calc(100vh-150px)] overflow-y-auto overflow-x-hidden w-full font-serif text-[#000000]">
-                {/* Header Container */}
-                <div className="flex justify-end items-start mb-12 border-b border-gray-300 pb-4">
-                  <div className="text-right text-[10px] text-gray-500 font-sans leading-relaxed tracking-wide">
-                     Print ISSN: 2395-1990 | Online ISSN: 2394-4099<br/>
-                     Themed Section: Engineering and Technology
-                  </div>
-                </div>
+                <div className="border border-border/20 rounded-xl p-8 bg-[#ffffff] shadow-2xl min-h-[1056px] max-h-[calc(100vh-150px)] overflow-y-auto overflow-x-hidden w-full font-serif text-[#000000]">
+                  {/* Hero Stage (Dark Background Context) */}
+                  {formData.videoThumbnail ? (
+                     <div className="mb-8 w-full rounded-2xl overflow-hidden border-4 border-slate-900 shadow-xl bg-black aspect-video relative group flex items-center justify-center">
+                        <video 
+                           key={formData.videoThumbnail} 
+                           autoPlay 
+                           loop 
+                           controls
+                           playsInline
+                           preload="auto"
+                           className="w-full h-full object-cover group-hover:opacity-100 transition-opacity"
+                        >
+                           <source 
+                              src={formData.videoThumbnail} 
+                              type="video/mp4" 
+                           />
+                           Your browser does not support the video tag.
+                        </video>
+                     </div>
+                  ) : (
+                     <div className="mb-8 p-6 bg-slate-900/5 border-2 border-dashed border-slate-900/10 rounded-2xl text-center">
+                        <p className="text-slate-900/30 font-bold uppercase tracking-widest text-[10px] italic">Research Preview Stage</p>
+                     </div>
+                  )}
 
-                <div className="text-center mb-10 px-8">
-                  <h1 className="text-[28px] font-bold mb-6 font-serif leading-tight">
-                    {formData.title || "Paper Title"}
-                  </h1>
-                  <div className="text-[12px] font-serif leading-relaxed mx-auto max-w-lg">
-                    {authorDetails.split('\n').map((line, i) => (
-                      <p key={i} className={i === 0 ? "font-bold text-[14px] mb-1 whitespace-pre-wrap" : "italic text-gray-600 whitespace-pre-wrap"}>
-                        {line}
-                      </p>
-                    ))}
-                  </div>
-                </div>
+                  {/* Paper Header Container */}
 
-                <div className="columns-1 md:columns-2 gap-8 text-justify text-[12px] leading-[1.6]">
-                  <div className="prose prose-sm max-w-none font-serif [&_h1]:text-[13px] [&_h1]:font-bold [&_h1]:uppercase [&_h1]:text-center [&_h1]:my-6 [&_h1]:tracking-wider [&_h2]:text-[12px] [&_h2]:italic [&_h2]:mb-2 [&_h2]:mt-4 [&_p]:mb-4 [&_p]:text-justify [&_img]:mx-auto [&_img]:my-4 [&_img]:border [&_img]:border-gray-200 [&_table]:w-full [&_table]:text-[10px] [&_table]:break-inside-avoid [&_table]:my-6 [&_th]:border-y-2 [&_th]:border-gray-800 [&_th]:py-2 [&_td]:border-b [&_td]:border-gray-300 [&_td]:py-2 [&_th]:font-bold [&_th]:uppercase [&_th]:bg-black/5 [&_svg]:max-w-full [&_svg]:h-auto [&_svg]:block">
+                  <div className="text-center mb-10 px-8">
+                    <h1 className="text-[24px] font-bold mb-4 font-serif leading-tight">
+                      {formData.title || "Paper Title"}
+                    </h1>
+                    <div className="text-[12px] font-serif leading-relaxed mx-auto max-w-lg">
+                      {authorDetails?.split('\n').map((line, i) => (
+                        <p key={i} className="whitespace-pre-wrap mb-1">
+                          {line}
+                        </p>
+                      ))}
+                    </div>
+
+                    
+                  </div>
+
+                  <div className="columns-1 md:columns-2 gap-8 text-justify text-[11px] leading-[1.4] font-serif" style={{ fontFamily: 'Times New Roman, Times, serif' }}>
+                    <div className="prose prose-sm max-w-none font-serif [&_h1]:text-[12px] [&_h1]:font-bold [&_h1]:uppercase [&_h1]:text-center [&_h1]:my-4 [&_h1]:tracking-wide [&_h2]:text-[11px] [&_h2]:font-bold [&_h2]:italic [&_h2]:mb-1 [&_h2]:mt-3 [&_p]:mb-2 [&_p]:text-justify [&_img]:mx-auto [&_img]:my-3 [&_img]:border [&_img]:border-gray-200 [&_table]:w-full [&_table]:text-[9px] [&_table]:break-inside-avoid [&_table]:my-4 [&_th]:border-y-2 [&_th]:border-gray-800 [&_th]:py-1 [&_td]:border-b [&_td]:border-gray-300 [&_td]:py-1 [&_th]:font-bold [&_th]:uppercase [&_th]:bg-black/5 [&_svg]:max-w-full [&_svg]:h-auto [&_svg]:block">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
@@ -1017,7 +1213,13 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
                         }: any) {
                           const match = /language-(\w+)/.exec(className || "");
                           if (!inline && match && match[1] === "svg") {
-                              return <div className="my-6 block text-center break-inside-avoid w-full overflow-hidden border border-gray-200 rounded-md p-1 shadow-sm bg-white" dangerouslySetInnerHTML={{__html: String(children)}} />;
+                              const content = Array.isArray(children) ? children.join('') : String(children);
+                              return (
+                                <div 
+                                  className="my-6 block text-center break-inside-avoid w-full overflow-hidden border border-gray-200 rounded-md p-1 shadow-sm bg-white" 
+                                  dangerouslySetInnerHTML={{ __html: content }} 
+                                />
+                              );
                           }
                           return !inline && match ? (
                             <SyntaxHighlighter
@@ -1034,6 +1236,27 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
                               {children}
                             </code>
                           );
+                        },
+                        table({ node, children }: any) {
+                          return (
+                            <div className="my-8 overflow-x-auto w-full border border-gray-200 rounded-lg shadow-sm">
+                              <table className="w-full border-collapse text-[11px] font-sans">
+                                {children}
+                              </table>
+                            </div>
+                          );
+                        },
+                        thead({ node, children }: any) {
+                          return <thead className="bg-[#f8fafc] border-b-2 border-slate-800">{children}</thead>;
+                        },
+                        th({ node, children }: any) {
+                          return <th className="p-3 text-left font-bold uppercase tracking-wider text-slate-700">{children}</th>;
+                        },
+                        td({ node, children }: any) {
+                          return <td className="p-3 border-b border-gray-100 text-slate-800 leading-relaxed">{children}</td>;
+                        },
+                        tr({ node, children }: any) {
+                          return <tr className="hover:bg-slate-50 transition-colors">{children}</tr>;
                         },
                         img({ node, ...props }: any) {
                           if (props.alt === "Video") {
@@ -1056,12 +1279,19 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
                             </span>
                           );
                         },
-                        p({ node, children }) {
-                          return <p className="mb-4 indent-6">{children}</p>;
+                        p({ node, children }: any) {
+                          const childrenArray = React.Children.toArray(children);
+                          const firstChild = childrenArray[0];
+                          const text = typeof firstChild === 'string' ? firstChild : '';
+                          const isCaption = text.startsWith("Fig") || text.startsWith("Table") || text.startsWith("Flowchart");
+                          if (isCaption) {
+                            return <p className="mb-4 mt-1 text-center font-bold text-[9px] uppercase tracking-tight">{children}</p>;
+                          }
+                          return <p className="mb-2 indent-4 text-justify leading-relaxed tracking-tight">{children}</p>;
                         }
                       }}
                     >
-                      {`**ABSTRACT**\n\n${formData.excerpt || "*The abstract text goes here.*"}\n\n**Keywords:** *${formData.tags.length ? formData.tags.join(", ") : "Keyword1, Keyword2"}*\n\n${formData.content || "*Start writing your introduction...*"}`}
+                      {`**ABSTRACT**\n\n${formData.excerpt || "*The abstract text goes here.*"}\n\n${formData.content || "*Start writing your introduction...*"}`}
                     </ReactMarkdown>
                   </div>
                 </div>
@@ -1094,6 +1324,7 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
                   >
                      <option value="Bar Chart">Bar Chart</option>
                      <option value="Line Chart">Line Chart</option>
+                     <option value="Pie Chart">Pie Chart</option>
                   </select>
                   
                   <div className="space-y-3">
@@ -1122,7 +1353,7 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
                            <Input className="w-2/3 min-w-0" placeholder="Label" value={d.label} onChange={(e) => {
                                const arr = [...graphData]; arr[i].label = e.target.value; setGraphData(arr);
                            }}/>
-                           <Input className="w-1/3 min-w-0" placeholder="Value" type="number" value={d.value} onChange={(e) => {
+                           <Input className="w-1/3 min-w-0" placeholder="Value" type="text" value={d.value} onChange={(e) => {
                                const arr = [...graphData]; arr[i].value = e.target.value; setGraphData(arr);
                            }}/>
                            <button type="button" onClick={() => setGraphData(graphData.filter((_, idx) => idx !== i))} className="p-2 text-red-500 hover:bg-red-500/10 rounded-md shrink-0">
@@ -1176,8 +1407,14 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
                  <button type="button" onClick={() => setIsFlowModalOpen(false)} className="md:hidden text-muted-foreground hover:text-foreground font-bold">✕</button>
                </div>
                
-               <div>
-                  <label className="text-xs font-bold uppercase tracking-widest block mb-2 text-muted-foreground">Orientation</label>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-widest block mb-2 text-muted-foreground">Orientation & Title</label>
+                  <Input 
+                      placeholder="Flowchart Title" 
+                      value={flowTitle} 
+                      onChange={(e) => setFlowTitle(e.target.value)}
+                      className="mb-3"
+                  />
                   <select 
                      value={flowDirection} 
                      onChange={(e) => setFlowDirection(e.target.value)}
@@ -1237,11 +1474,18 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-card w-full max-w-4xl rounded-xl shadow-2xl border-2 border-brutal p-6 flex flex-col relative max-h-[90vh] overflow-hidden">
              <div className="flex justify-between items-center mb-6">
-                 <h3 className="font-head text-xl font-bold flex items-center gap-2">
-                    <TableIcon className="w-5 h-5" /> Data Table Grid
-                 </h3>
-                 <button type="button" onClick={() => setIsTableModalOpen(false)} className="text-muted-foreground hover:text-foreground font-bold">✕</button>
-             </div>
+                  <h3 className="font-head text-xl font-bold flex items-center gap-2">
+                     <TableIcon className="w-5 h-5" /> Data Table Grid
+                  </h3>
+                  <div className="flex-1 max-w-sm mx-4">
+                     <Input 
+                        placeholder="Table Title (e.g., Experimental Results)" 
+                        value={tableTitle} 
+                        onChange={(e) => setTableTitle(e.target.value)}
+                     />
+                  </div>
+                  <button type="button" onClick={() => setIsTableModalOpen(false)} className="text-muted-foreground hover:text-foreground font-bold">✕</button>
+              </div>
              
              <div className="flex gap-2 mb-4">
                  <Button type="button" variant="outline" onClick={() => {
@@ -1303,8 +1547,8 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
       <Dialog open={isTermsOpen} onOpenChange={setIsTermsOpen}>
         <DialogContent className="max-w-md border-brutal bg-card">
           <DialogHeader>
-            <DialogTitle className="font-head text-2xl">
-              Community Pledge ✍️
+            <DialogTitle className="font-head text-2xl flex items-center gap-2">
+              Community Pledge <PenLine className="w-6 h-6 text-primary" />
             </DialogTitle>
             <DialogDescription className="font-sans text-muted-foreground">
               Before publishing, please agree to our community guidelines.
@@ -1322,8 +1566,8 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
                 <li>Is original content or properly cited.</li>
                 <li>Respects the intellectual property of others.</li>
               </ul>
-              <p className="items-center font-bold text-destructive mt-2">
-                ⚠️ Violations will result in immediate ban.
+              <p className="flex items-center gap-1.5 font-bold text-destructive mt-2">
+                <AlertTriangle className="w-4 h-4" /> Violations will result in immediate ban.
               </p>
             </div>
 

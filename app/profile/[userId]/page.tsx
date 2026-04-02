@@ -11,7 +11,8 @@ import ProfileDownloadButton from "@/components/profile/ProfileDownloadButton";
 import { ProfileContent } from "@/components/profile/ProfileContent";
 
 import { auth } from "@clerk/nextjs/server";
-import { FaGithub, FaLinkedin, FaGlobe } from "react-icons/fa6";
+import { FaGithub, FaLinkedin } from "react-icons/fa6";
+import { PenLine, Globe, Zap, Flame, Settings, Trophy } from "lucide-react";
 
 import { getOrCreateUser } from "@/lib/auth/user";
 
@@ -154,7 +155,16 @@ export default async function ProfilePage({
     "Forge Master",
     "RnD Fellow",
   ];
-  const tierEmojis = ["", "⚡", "🔥", "⚙️", "🏆"];
+  
+  const getTierIcon = (tier: number) => {
+    switch (tier) {
+      case 1: return <Zap className="w-5 h-5 inline text-yellow-500" />;
+      case 2: return <Flame className="w-5 h-5 inline text-orange-500" />;
+      case 3: return <Settings className="w-5 h-5 inline text-slate-500" />;
+      case 4: return <Trophy className="w-5 h-5 inline text-yellow-600" />;
+      default: return null;
+    }
+  };
 
   return (
     <>
@@ -188,8 +198,8 @@ export default async function ProfilePage({
                     height={140}
                     className="relative rounded-full border-4 border-brutal object-cover shadow-sm bg-background"
                   />
-                  <div className="absolute bottom-0 right-0 bg-background rounded-full p-1 border-2 border-brutal text-xl shadow-sm">
-                    {tierEmojis[user.tier]}
+                  <div className="absolute bottom-0 right-0 bg-background rounded-full p-2 border-2 border-brutal shadow-sm">
+                    {getTierIcon(user.tier)}
                   </div>
                 </div>
               )}
@@ -218,7 +228,7 @@ export default async function ProfilePage({
                           className="h-10 w-10 border-2 border-brutal hover:bg-muted transition-all rounded-full"
                           title="Edit Profile"
                         >
-                          ✏️
+                          <PenLine className="w-4 h-4" />
                         </Button>
                       </Link>
                     )}
@@ -314,7 +324,7 @@ export default async function ProfilePage({
                         size="icon"
                         className="h-10 w-10 rounded-full border-2 border-brutal hover:scale-110 hover:-rotate-6 transition-transform bg-card shadow-sm group/icon"
                       >
-                        <FaGlobe className="text-xl group-hover/icon:scale-110 transition-transform text-green-500" />
+                        <Globe className="text-xl group-hover/icon:scale-110 transition-transform text-green-500" />
                       </Button>
                     </a>
                   )}

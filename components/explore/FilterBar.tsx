@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/retroui/Button'
-import { FaMagnifyingGlass } from 'react-icons/fa6'
+import { Search } from 'lucide-react'
 import { Input } from '@/components/retroui/Input'
 
 const TAGS = [
@@ -71,7 +71,7 @@ export function FilterBar({
               type="submit"
               className="bg-primary text-primary-foreground border-brutal shadow-brutal hover:shadow-brutal-sm flex items-center justify-center gap-2 whitespace-nowrap"
             >
-              <FaMagnifyingGlass /> <span className="sm:inline">Search</span>
+              <Search className="w-4 h-4" /> <span className="sm:inline">Search</span>
             </Button>
           </div>
         </form>
