@@ -1272,7 +1272,7 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
                 <div className="border border-border/20 rounded-xl p-8 bg-[#ffffff] shadow-2xl min-h-[1056px] max-h-[calc(100vh-150px)] overflow-y-auto overflow-x-hidden w-full font-serif text-[#000000]">
                   {/* Hero Stage (Dark Background Context) */}
                   {formData.videoThumbnail ? (
-                     <div className="mb-8 w-full rounded-2xl overflow-hidden border-4 border-slate-900 shadow-xl bg-black aspect-video relative group flex items-center justify-center">
+                     <div className="mb-8 w-full overflow-hidden bg-black aspect-video relative group flex items-center justify-center">
                         <video 
                            key={formData.videoThumbnail} 
                            autoPlay 
