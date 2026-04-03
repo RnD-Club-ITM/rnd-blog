@@ -60,6 +60,17 @@ export const postSchema = defineType({
             type: 'url',
         }),
         defineField({
+            name: 'videoTitle',
+            title: 'Video Title',
+            type: 'string',
+        }),
+        defineField({
+            name: 'attachResearchPaper',
+            title: 'Attach Research Paper',
+            type: 'boolean',
+            initialValue: false,
+        }),
+        defineField({
             name: 'authorDetails',
             title: 'Custom Author & Affiliations',
             type: 'text',

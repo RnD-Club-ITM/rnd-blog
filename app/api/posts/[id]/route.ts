@@ -15,7 +15,7 @@ export async function PUT(
         }
 
         const body = await request.json()
-        const { title, excerpt, content, tags, coverImageUrl, videoThumbnail, authorDetails } = body
+        const { title, excerpt, content, tags, coverImageUrl, videoThumbnail, videoTitle, attachResearchPaper, authorDetails } = body
  
          // Fetch the post to check ownership
          const post = await client.fetch(`*[_type == "post" && _id == $id][0] { author->{ clerkId } }`, { id })
@@ -25,11 +25,7 @@ export async function PUT(
          }
  
          // Check if the current user is the author
-         // Note: This relies on the author having a clerkId field or being able to map.
-         // Ideally we check if post.author.clerkId === clerkUser.id
- 
          if (post.author?.clerkId !== clerkUser.id) {
-             // Only allow if they match
              return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
          }
  
@@ -45,6 +41,8 @@ export async function PUT(
                  isEdited: true,
                  ...(coverImageUrl && { coverImageUrl }), 
                  ...(videoThumbnail && { videoThumbnail }),
+                 ...(videoTitle && { videoTitle }),
+                 attachResearchPaper: !!attachResearchPaper,
              })
             .commit()
 

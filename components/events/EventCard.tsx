@@ -102,7 +102,7 @@ export function EventCard({ event }: EventProps) {
                     </div>
 
                     <Link href={googleCalendarUrl} target="_blank">
-                        <Button variant="outline" className="px-3 border-2 border-black bg-white hover:bg-gray-50 shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all" title="Add to Google Calendar">
+                        <Button variant="outline" className="px-3 border-2 border-foreground bg-card hover:bg-muted shadow-brutal transition-all" title="Add to Google Calendar">
                             <Calendar className="h-5 w-5" />
                         </Button>
                     </Link>

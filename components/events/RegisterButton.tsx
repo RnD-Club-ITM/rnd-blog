@@ -28,7 +28,7 @@ export function RegisterButton({ eventSlug, isPast }: RegisterButtonProps) {
 
     if (isPast) {
         return (
-            <Button disabled className="w-full flex-1 opacity-50 cursor-not-allowed border-2 border-black bg-muted font-bold">
+            <Button disabled className="w-full flex-1 opacity-50 cursor-not-allowed border-2 border-foreground bg-muted text-muted-foreground font-bold">
                 Event Ended
             </Button>
         );
@@ -37,7 +37,7 @@ export function RegisterButton({ eventSlug, isPast }: RegisterButtonProps) {
     return (
         <Button
             onClick={handleClick}
-            className="w-full flex-1 bg-primary text-primary-foreground border-2 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all font-bold"
+            className="w-full flex-1 bg-primary text-primary-foreground border-2 border-foreground shadow-brutal transition-all font-bold"
         >
             Register Now
         </Button>

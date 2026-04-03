@@ -56,7 +56,7 @@ END:VCALENDAR`;
         <div className="flex flex-col gap-3 w-full">
             <Button
                 onClick={generateIcsFile}
-                className="w-full bg-black text-white hover:bg-zinc-800 font-bold border-2 border-black flex items-center justify-center gap-2 py-6 text-lg"
+                className="w-full bg-foreground text-background hover:opacity-95 font-bold border-2 border-foreground flex items-center justify-center gap-2 py-6 text-lg"
             >
                 <FaCalendarPlus /> Add to Apple Wallet / Calendar
             </Button>
@@ -64,7 +64,7 @@ END:VCALENDAR`;
             <a href={getGoogleCalendarLink()} target="_blank" rel="noopener noreferrer" className="w-full">
                 <Button
                     variant="outline"
-                    className="w-full bg-white text-black hover:bg-gray-50 font-bold border-2 border-border flex items-center justify-center gap-2 py-4"
+                    className="w-full bg-card text-foreground hover:bg-muted font-bold border-2 border-border flex items-center justify-center gap-2 py-4"
                 >
                     <FaGoogle /> Add to Google Calendar
                 </Button>

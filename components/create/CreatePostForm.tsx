@@ -56,6 +56,8 @@ interface PostFormProps {
     content: string;
     tags: string[];
     coverImageUrl?: string;
+    videoTitle?: string;
+    attachResearchPaper?: boolean;
   };
   postId?: string; // If present, it's an edit
 }
@@ -79,6 +81,8 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
     tags: initialData?.tags || [],
     coverImageUrl: initialData?.coverImageUrl || "",
     videoThumbnail: "", // New field for Cloudinary CDN URL
+    videoTitle: initialData?.videoTitle || "",
+    attachResearchPaper: initialData?.attachResearchPaper || false,
   });
 
   type SectionType = 'introduction' | 'methods' | 'results' | 'conclusion';
@@ -743,64 +747,79 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
           <div className="space-y-6">
             {/* Metadata Card */}
             <div className="bg-card border-brutal p-6 space-y-6 rounded-lg relative overflow-hidden">
-              <div className="flex justify-between items-center border-b border-border pb-2 mb-4">
-                <h3 className="font-head text-xl font-bold">
-                  Research Details
-                </h3>
-                <div className="flex flex-col sm:flex-row gap-2">
-                   <Button 
-                     type="button" 
-                     onClick={async () => {
-                        if (!formData.title) {
-                            toast.error("Please enter a paper title first to guide the AI.");
-                            return;
-                        }
-                        setIsWritingPaper(true);
-                        const toastId = toast.loading("AI is researching and writing the paper...");
-                        try {
-                          const res = await fetch("/api/ai/write-paper", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ topic: formData.title, existingContent: sections.introduction }),
-                          });
-                          if (!res.ok) {
-                             const errorData = await res.json().catch(() => ({}));
-                             throw new Error(errorData.error || "Paper writing failed");
+              <div className="border-b border-border pb-4 mb-4 space-y-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <h3 className="font-head text-xl font-bold">
+                    Research Details
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                     <Button 
+                       type="button" 
+                       onClick={async () => {
+                          if (!formData.title) {
+                              toast.error("Please enter a paper title first to guide the AI.");
+                              return;
                           }
-                          const data = await res.json();
-                          handleChange("excerpt", data.abstract || "");
-                          if (data.keywords && typeof data.keywords === 'string') {
-                             const kw = data.keywords.split(",").map((k: string) => k.trim());
-                             setFormData(prev => ({ ...prev, tags: kw }));
+                          setIsWritingPaper(true);
+                          const toastId = toast.loading("AI is researching and writing the paper...");
+                          try {
+                            const res = await fetch("/api/ai/write-paper", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ topic: formData.title, existingContent: sections.introduction }),
+                            });
+                            if (!res.ok) {
+                               const errorData = await res.json().catch(() => ({}));
+                               throw new Error(errorData.error || "Paper writing failed");
+                            }
+                            const data = await res.json();
+                            handleChange("excerpt", data.abstract || "");
+                            if (data.keywords && typeof data.keywords === 'string') {
+                               const kw = data.keywords.split(",").map((k: string) => k.trim());
+                               setFormData(prev => ({ ...prev, tags: kw }));
+                            }
+                            setSections({
+                               introduction: data.introduction || "",
+                               methods: data.methods || "",
+                               results: data.results || "",
+                               conclusion: data.conclusion || ""
+                            });
+                            toast.success("Paper auto-written successfully!", { id: toastId });
+                          } catch (error: any) {
+                            toast.error(error.message, { id: toastId });
+                          } finally {
+                            setIsWritingPaper(false);
                           }
-                          setSections({
-                             introduction: data.introduction || "",
-                             methods: data.methods || "",
-                             results: data.results || "",
-                             conclusion: data.conclusion || ""
-                          });
-                          toast.success("Paper auto-written successfully!", { id: toastId });
-                        } catch (error: any) {
-                          toast.error(error.message, { id: toastId });
-                        } finally {
-                          setIsWritingPaper(false);
-                        }
-                     }}
-                     disabled={isWritingPaper}
-                     className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm flex items-center gap-2 text-xs"
-                   >
-                     {isWritingPaper ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bot className="w-4 h-4" />}
-                     Auto-Generate Paper
-                   </Button>
-                   <Button 
-                      type="button" 
-                      variant="outline"
-                      onClick={handleReviewPaper}
-                      className="border-brutal flex items-center gap-2 text-xs bg-card hover:bg-[#fff9f0] border-orange-500 text-orange-700 shadow-sm"
-                   >
-                     <ClipboardCheck className="w-4 h-4 text-orange-600" />
-                     Review
-                   </Button>
+                       }}
+                       disabled={isWritingPaper}
+                       className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-brutal-sm flex items-center gap-2 text-xs"
+                     >
+                       {isWritingPaper ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bot className="w-4 h-4" />}
+                       Auto-Generate Paper
+                     </Button>
+                     <Button 
+                        type="button" 
+                        variant="outline"
+                        onClick={handleReviewPaper}
+                        className="border-brutal flex items-center gap-2 text-xs bg-card hover:bg-muted border-foreground text-foreground shadow-brutal-sm"
+                     >
+                       <ClipboardCheck className="w-4 h-4 text-primary" />
+                       Review
+                     </Button>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3 p-2 bg-muted/30 rounded-md border border-dashed border-border/50">
+                    <input
+                      type="checkbox"
+                      id="attachResearchPaper"
+                      checked={formData.attachResearchPaper}
+                      onChange={(e) => setFormData(prev => ({ ...prev, attachResearchPaper: e.target.checked }))}
+                      className="w-5 h-5 rounded border-brutal text-primary focus:ring-primary cursor-pointer"
+                    />
+                    <label htmlFor="attachResearchPaper" className="text-sm font-bold text-foreground cursor-pointer select-none">
+                      Attach Research Paper Content
+                    </label>
                 </div>
               </div>
 
@@ -897,7 +916,7 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
                      variant="outline" 
                      onClick={() => videoThumbnailInputRef.current?.click()}
                      disabled={isUploadingVideoThumbnail}
-                     className="border-brutal bg-white hover:bg-muted"
+                     className="border-brutal bg-card hover:bg-muted text-foreground"
                      title="Upload Video File"
                    >
                      {isUploadingVideoThumbnail ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
@@ -914,6 +933,18 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
               
                 {formData.videoThumbnail && (
                    <div className="mt-4 space-y-3 p-4 border-2 border-brutal border-dashed rounded-lg bg-orange-50/5">
+                      <div className="space-y-2 mb-4 bg-muted/20 p-2 border border-brutal">
+                        <label className="text-xs font-bold uppercase tracking-widest text-foreground flex items-center gap-2">
+                           Video Title
+                        </label>
+                        <Input
+                          type="text"
+                          value={formData.videoTitle}
+                          onChange={(e) => handleChange("videoTitle", e.target.value)}
+                          placeholder="What's this catch? (e.g. Prototype Walkthrough)"
+                          className="h-8 text-sm"
+                        />
+                      </div>
                       <div className="flex items-center justify-between mb-2">
                         <label className="text-xs font-bold uppercase tracking-widest text-primary flex items-center gap-2">
                            <Video className="w-4 h-4" /> Thumbnail Selector

@@ -124,23 +124,30 @@ export default async function PostPage({
 
             {/* Video Hero or Excerpt */}
             {post.videoThumbnail ? (
-               <div className="mb-10 w-full overflow-hidden bg-black aspect-video relative group flex items-center justify-center">
-                  <video 
-                     key={post.videoThumbnail} 
-                     autoPlay 
-                     loop 
-                     muted
-                     controls
-                     playsInline
-                     preload="auto"
-                     className="w-full h-full object-cover group-hover:opacity-100 transition-opacity"
-                  >
-                     <source 
-                        src={post.videoThumbnail} 
-                        type="video/mp4" 
-                     />
-                     Your browser does not support the video tag.
-                  </video>
+               <div className="mb-10 w-full space-y-4">
+                  {post.videoTitle && (
+                    <h2 className="text-2xl font-bold bg-primary text-primary-foreground px-4 py-2 border-brutal inline-block">
+                      {post.videoTitle}
+                    </h2>
+                  )}
+                  <div className="w-full overflow-hidden bg-black aspect-video relative group flex items-center justify-center border-brutal-thick shadow-brutal">
+                    <video 
+                       key={post.videoThumbnail} 
+                       autoPlay 
+                       loop 
+                       muted
+                       controls
+                       playsInline
+                       preload="auto"
+                       className="w-full h-full object-cover group-hover:opacity-100 transition-opacity"
+                    >
+                       <source 
+                          src={post.videoThumbnail} 
+                          type="video/mp4" 
+                       />
+                       Your browser does not support the video tag.
+                    </video>
+                  </div>
                </div>
             ) : post.excerpt && (
               <p className="text-lg text-muted-foreground italic mb-8 border-l-4 border-primary pl-4">
@@ -150,6 +157,7 @@ export default async function PostPage({
           </header>
 
           {/* Content replaced as A4 Research Paper */}
+          {post.attachResearchPaper && (
             <div id="research-paper-container" className="bg-[#ffffff] w-full text-[#000000] p-6 md:p-10 shadow-[8px_8px_0px_#000000] border-4 border-black relative mx-auto mb-12 font-serif overflow-y-auto overflow-x-hidden" style={{ fontFamily: 'Times New Roman, Times, serif' }}>
               {/* Inner top meta line mapping to match Editor preview */}
               <div className="mb-6 pb-4 border-b-2 border-gray-200">
@@ -219,6 +227,7 @@ export default async function PostPage({
               </div>
             </div>
           </div>
+          )}
 
           {/* Engagement Actions */}
           <div className="border-y-2 border-black py-6 mb-8">

@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json()
-        const { title, excerpt, content, tags, userId, coverImageUrl, videoThumbnail, authorDetails } = body
+        const { title, excerpt, content, tags, userId, coverImageUrl, videoThumbnail, videoTitle, attachResearchPaper, authorDetails } = body
 
         // Create post object
         const postDoc = {
@@ -38,6 +38,8 @@ export async function POST(request: NextRequest) {
             publishedAt: new Date().toISOString(),
             ...(coverImageUrl && { coverImageUrl }), // Only add if present
             ...(videoThumbnail && { videoThumbnail }),
+            ...(videoTitle && { videoTitle }),
+            attachResearchPaper: !!attachResearchPaper,
         }
 
         const post = await client.create(postDoc)
