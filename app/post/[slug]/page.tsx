@@ -110,7 +110,7 @@ export default async function PostPage({
             </div>
 
             {/* Featured Image */}
-            {(post.coverImageUrl || post.thumbnail) && (
+            {(post.coverImageUrl || post.thumbnail) && !post.videoThumbnail && (
               <div className="my-8 border-brutal overflow-hidden">
                 <Image
                   src={post.coverImageUrl || urlFor(post.thumbnail).width(800).height(450).url()}
@@ -124,7 +124,7 @@ export default async function PostPage({
 
             {/* Video Hero or Excerpt */}
             {post.videoThumbnail ? (
-               <div className="mb-10 w-full rounded-2xl overflow-hidden border-4 border-slate-900 shadow-2xl bg-black aspect-video relative group flex items-center justify-center">
+               <div className="mb-10 w-full overflow-hidden bg-black aspect-video relative group flex items-center justify-center">
                   <video 
                      key={post.videoThumbnail} 
                      autoPlay 
