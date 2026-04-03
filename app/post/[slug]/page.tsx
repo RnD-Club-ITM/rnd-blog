@@ -109,21 +109,16 @@ export default async function PostPage({
               </div>
             </div>
 
-            {/* Featured Image */}
-            {(post.coverImageUrl || post.thumbnail) && !post.videoThumbnail && (
-              <div className="my-8 border-brutal overflow-hidden">
-                <Image
-                  src={post.coverImageUrl || urlFor(post.thumbnail).width(800).height(450).url()}
-                  alt={post.title}
-                  width={800}
-                  height={450}
-                  className="w-full h-auto object-cover"
-                />
-              </div>
+            {/* Abstract visible in header ONLY if Research Paper is attached */}
+            {post.attachResearchPaper && post.excerpt && !post.videoThumbnail && (
+               <p className="text-lg text-muted-foreground italic mb-10 border-l-4 border-primary pl-4 py-2 bg-muted/5 rounded-r-md">
+                 <span className="font-bold text-xs uppercase block mb-2 not-italic text-primary tracking-wider">Abstract</span>
+                 {post.excerpt}
+               </p>
             )}
 
-            {/* Video Hero or Excerpt */}
-            {post.videoThumbnail ? (
+            {/* Video Hero */}
+            {post.videoThumbnail && (
                <div className="mb-10 w-full space-y-4">
                   {post.videoTitle && (
                     <h2 className="text-2xl font-bold bg-primary text-primary-foreground px-4 py-2 border-brutal inline-block">
@@ -149,10 +144,6 @@ export default async function PostPage({
                     </video>
                   </div>
                </div>
-            ) : post.excerpt && (
-              <p className="text-lg text-muted-foreground italic mb-8 border-l-4 border-primary pl-4">
-                {post.excerpt}
-              </p>
             )}
           </header>
 
@@ -222,7 +213,7 @@ export default async function PostPage({
                       }
                     }}
                   >
-                    {`**ABSTRACT**\n\n${post.excerpt || "*No abstract provided.*"}\n\n${post.content}`}
+                    {post.content}
                 </ReactMarkdown>
               </div>
             </div>

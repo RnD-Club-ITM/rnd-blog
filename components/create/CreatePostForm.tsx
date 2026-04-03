@@ -1435,7 +1435,7 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
                         }
                       }}
                     >
-                      {`**ABSTRACT**\n\n${formData.excerpt || "*The abstract text goes here.*"}\n\n${formData.content || "*Start writing your introduction...*"}`}
+                      {formData.content || "*Start writing your introduction...*"}
                     </ReactMarkdown>
                   </div>
                 </div>

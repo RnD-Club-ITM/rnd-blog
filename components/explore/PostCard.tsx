@@ -149,27 +149,19 @@ function PostCardContent({ post, tierEmojis, tagColors }: { post: any, tierEmoji
           </div>
         </div>
 
-        {/* Cover Video or Image (Under Title) */}
-        {post.videoThumbnail ? (
+        {/* Cover Video (Under Title) */}
+        {post.videoThumbnail && (
           <VideoPreview 
             src={post.videoThumbnail} 
             poster={coverImage} 
             title={post.title} 
           />
-        ) : coverImage ? (
-          <div className="relative w-full aspect-video rounded-md overflow-hidden border-2 border-black mb-3 sm:mb-4 bg-muted/20">
-            <Image
-              src={coverImage}
-              alt={post.title}
-              fill
-              className="object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-          </div>
-        ) : null}
+        )}
 
-        {/* Excerpt */}
-        {post.excerpt && (
-          <p className="text-muted-foreground text-xs sm:text-sm mb-4 line-clamp-3 flex-1 leading-relaxed">
+        {/* Excerpt/Abstract visible ONLY if Research Paper is attached */}
+        {post.attachResearchPaper && post.excerpt && (
+          <p className="text-muted-foreground text-xs sm:text-sm mb-4 line-clamp-3 flex-1 leading-relaxed border-l-2 border-primary/30 pl-3 italic">
+            <span className="font-bold text-[10px] uppercase block mb-1 not-italic">Abstract</span>
             {post.excerpt}
           </p>
         )}
