@@ -52,6 +52,10 @@ export default async function EditPostPage({
               excerpt: post.excerpt,
               content: post.content,
               tags: post.tags,
+              coverImageUrl: post.coverImageUrl,
+              videoThumbnail: post.videoThumbnail,
+              videoTitle: post.videoTitle,
+              attachResearchPaper: post.attachResearchPaper,
             }}
             postId={post._id}
           />

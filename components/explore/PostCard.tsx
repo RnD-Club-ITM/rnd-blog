@@ -1,5 +1,6 @@
 'use client'
 
+import React, { useRef, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { getImageUrl, urlFor } from '@/lib/sanity/client'
@@ -10,7 +11,7 @@ import { Button } from '@/components/retroui/Button'
 import { SignedOut, SignedIn } from '@clerk/nextjs'
 import * as Dialog from '@radix-ui/react-dialog'
 import { BookmarkButton } from '@/components/collections/BookmarkButton'
-import { X, Lock, Zap, Flame, Settings, Trophy, Eye, Zap as BoltIcon } from 'lucide-react'
+import { X, Lock, Zap, Flame, Settings, Trophy, Eye, Zap as BoltIcon, Bot } from 'lucide-react'
 
 interface PostCardProps {
   post: {
@@ -99,22 +100,62 @@ export function PostCard({ post }: PostCardProps) {
 }
 
 function VideoPreview({ src, poster, title }: { src: string, poster?: string | null, title: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+    videoRef.current?.play().catch(e => console.warn("Autoplay blocked or video missing", e));
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.currentTime = 0.1; // Reset to preview frame
+    }
+  };
+
   return (
-    <div className="relative w-full aspect-video rounded-md overflow-hidden border-2 border-black mb-3 sm:mb-4 bg-muted/20 group/video">
+    <div 
+      className="relative w-full aspect-video rounded-md overflow-hidden border-2 border-black mb-3 sm:mb-4 bg-muted group/video cursor-pointer shadow-brutal-sm"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {/* Poster Image Overlay - Shown when NOT hovered or before video loads */}
+      {poster && (
+        <div className={`absolute inset-0 z-10 transition-opacity duration-500 ${isHovered && isLoaded ? 'opacity-0' : 'opacity-100'}`}>
+          <Image 
+            src={poster} 
+            alt={title} 
+            fill 
+            className={`object-cover transition-all duration-700 ${isHovered ? 'scale-110 blur-0' : 'scale-100 blur-[0.5px]'}`}
+            unoptimized={poster.includes('cloudinary.com')}
+          />
+        </div>
+      )}
+
       <video
+        ref={videoRef}
         src={src.includes('#t=') ? src : `${src}#t=0.1`}
-        poster={poster || undefined}
         muted
         playsInline
-        preload="metadata"
-        className="w-full h-full object-cover transition-transform duration-500 group-hover/video:scale-105"
+        loop
+        preload="auto"
+        onLoadedData={() => setIsLoaded(true)}
+        className={`w-full h-full object-cover transition-all duration-700 ${isHovered ? 'scale-110 blur-0' : 'scale-100 blur-[0.5px]'}`}
       />
-      {/* Play icon overlay to indicate it's a video post without playing it on the card */}
-      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/video:opacity-100 transition-opacity bg-black/20">
-         <div className="w-12 h-12 rounded-full bg-primary/90 flex items-center justify-center shadow-brutal border-2 border-black">
-            <BoltIcon className="w-6 h-6 text-primary-foreground fill-primary-foreground ml-0.5" />
-         </div>
+      
+      {/* Indicator Overlay - Shows only on hover */}
+      <div className={`absolute inset-0 z-20 flex items-center justify-center transition-all duration-300 ${isHovered ? 'bg-black/20 opacity-100' : 'opacity-0 pointer-events-none'}`}>
+         {isHovered && (
+           <div className="w-12 h-12 rounded-full bg-primary/95 flex items-center justify-center shadow-brutal border-2 border-black animate-in zoom-in-50 duration-300">
+              <BoltIcon className="w-6 h-6 text-primary-foreground fill-primary-foreground" />
+           </div>
+         )}
       </div>
+
     </div>
   )
 }
@@ -149,14 +190,24 @@ function PostCardContent({ post, tierEmojis, tagColors }: { post: any, tierEmoji
           </div>
         </div>
 
-        {/* Cover Video (Under Title) */}
-        {post.videoThumbnail && (
+        {/* Cover Video or Image */}
+        {post.videoThumbnail ? (
           <VideoPreview 
             src={post.videoThumbnail} 
             poster={coverImage} 
             title={post.title} 
           />
-        )}
+        ) : coverImage ? (
+          <div className="relative w-full aspect-video rounded-md overflow-hidden border-2 border-black mb-3 sm:mb-4 bg-muted shadow-brutal-sm group-hover:shadow-brutal transition-all">
+            <Image 
+              src={coverImage} 
+              alt={post.title} 
+              fill 
+              className="object-cover transition-transform duration-700 group-hover:scale-110"
+              unoptimized={coverImage.includes('cloudinary.com')}
+            />
+          </div>
+        ) : null}
 
         {/* Excerpt/Abstract visible ONLY if Research Paper is attached */}
         {post.attachResearchPaper && post.excerpt && (

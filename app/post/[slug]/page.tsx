@@ -117,8 +117,8 @@ export default async function PostPage({
                </p>
             )}
 
-            {/* Video Hero */}
-            {post.videoThumbnail && (
+            {/* Video Hero or Cover Image */}
+            {post.videoThumbnail ? (
                <div className="mb-10 w-full space-y-4">
                   {post.videoTitle && (
                     <h2 className="text-2xl font-bold bg-primary text-primary-foreground px-4 py-2 border-brutal inline-block">
@@ -134,6 +134,7 @@ export default async function PostPage({
                        controls
                        playsInline
                        preload="auto"
+                       poster={post.coverImageUrl || (post.thumbnail ? getImageUrl(post.thumbnail) : undefined)}
                        className="w-full h-full object-cover group-hover:opacity-100 transition-opacity"
                     >
                        <source 
@@ -143,6 +144,16 @@ export default async function PostPage({
                        Your browser does not support the video tag.
                     </video>
                   </div>
+               </div>
+            ) : (post.coverImageUrl || post.thumbnail) && (
+               <div className="mb-10 w-full overflow-hidden aspect-video relative border-brutal-thick shadow-brutal group">
+                  <Image 
+                    src={post.coverImageUrl || getImageUrl(post.thumbnail)!} 
+                    alt={post.title}
+                    fill
+                    className="object-cover transition-transform duration-700 group-hover:scale-110"
+                    unoptimized={(post.coverImageUrl || "").includes('cloudinary.com')}
+                  />
                </div>
             )}
           </header>
