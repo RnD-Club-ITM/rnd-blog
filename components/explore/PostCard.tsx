@@ -11,7 +11,7 @@ import { Button } from '@/components/retroui/Button'
 import { SignedOut, SignedIn } from '@clerk/nextjs'
 import * as Dialog from '@radix-ui/react-dialog'
 import { BookmarkButton } from '@/components/collections/BookmarkButton'
-import { X, Lock, Zap, Flame, Settings, Trophy, Eye, Zap as BoltIcon, Bot } from 'lucide-react'
+import { X, Lock, Zap, Flame, Settings, Trophy, Eye, Zap as BoltIcon, Bot, Video } from 'lucide-react'
 
 interface PostCardProps {
   post: {
@@ -100,62 +100,61 @@ export function PostCard({ post }: PostCardProps) {
 }
 
 function VideoPreview({ src, poster, title }: { src: string, poster?: string | null, title: string }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [isHovered, setIsHovered] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
-  const handleMouseEnter = () => {
-    setIsHovered(true);
-    videoRef.current?.play().catch(e => console.warn("Autoplay blocked or video missing", e));
-  };
-
-  const handleMouseLeave = () => {
-    setIsHovered(false);
-    if (videoRef.current) {
-      videoRef.current.pause();
-      videoRef.current.currentTime = 0.1; // Reset to preview frame
-    }
-  };
+  // Auto-generate Cloudinary thumbnail if poster is missing
+  const autoPoster = !poster && src.includes('cloudinary.com') && src.includes('/video/upload/') 
+    ? src.replace('/video/upload/', '/video/upload/so_0.1,w_800,h_450,c_fill/').replace(/\.[^/.]+$/, ".jpg")
+    : poster;
 
   return (
     <div 
-      className="relative w-full aspect-video rounded-md overflow-hidden border-2 border-black mb-3 sm:mb-4 bg-muted group/video cursor-pointer shadow-brutal-sm"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      className="relative w-full aspect-video rounded-md overflow-hidden border-2 border-black mb-3 sm:mb-4 bg-muted group/video shadow-brutal-sm flex items-center justify-center"
     >
-      {/* Poster Image Overlay - Shown when NOT hovered or before video loads */}
-      {poster && (
-        <div className={`absolute inset-0 z-10 transition-opacity duration-500 ${isHovered && isLoaded ? 'opacity-0' : 'opacity-100'}`}>
-          <Image 
-            src={poster} 
-            alt={title} 
-            fill 
-            className={`object-cover transition-all duration-700 ${isHovered ? 'scale-110 blur-0' : 'scale-100 blur-[0.5px]'}`}
-            unoptimized={poster.includes('cloudinary.com')}
+      {autoPoster && !hasError ? (
+        <Image 
+          src={autoPoster} 
+          alt={title} 
+          fill 
+          className="object-cover transition-all duration-700 group-hover/video:scale-110 blur-[0.3px] group-hover/video:blur-0"
+          onLoad={() => setIsLoaded(true)}
+          onError={() => setHasError(true)}
+          unoptimized={autoPoster.includes('cloudinary.com')}
+        />
+      ) : (
+        <>
+          <video
+            src={src.includes('#t=') ? src : `${src}#t=0.1`}
+            muted
+            playsInline
+            preload="auto"
+            onLoadedData={() => setIsLoaded(true)}
+            onError={() => setHasError(true)}
+            className={`w-full h-full object-cover transition-all duration-700 group-hover/video:scale-110 blur-[0.3px] group-hover/video:blur-0 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
           />
-        </div>
+          {!isLoaded && !hasError && (
+             <div className="absolute inset-0 flex items-center justify-center bg-muted animate-pulse">
+                <Bot className="w-8 h-8 text-muted-foreground/30" />
+             </div>
+          )}
+          {hasError && (
+             <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 gap-2">
+                <div className="p-3 bg-primary/20 rounded-full">
+                   <Video className="w-6 h-6 text-primary" />
+                </div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Preview Syncing...</p>
+             </div>
+          )}
+        </>
       )}
-
-      <video
-        ref={videoRef}
-        src={src.includes('#t=') ? src : `${src}#t=0.1`}
-        muted
-        playsInline
-        loop
-        preload="auto"
-        onLoadedData={() => setIsLoaded(true)}
-        className={`w-full h-full object-cover transition-all duration-700 ${isHovered ? 'scale-110 blur-0' : 'scale-100 blur-[0.5px]'}`}
-      />
       
-      {/* Indicator Overlay - Shows only on hover */}
-      <div className={`absolute inset-0 z-20 flex items-center justify-center transition-all duration-300 ${isHovered ? 'bg-black/20 opacity-100' : 'opacity-0 pointer-events-none'}`}>
-         {isHovered && (
-           <div className="w-12 h-12 rounded-full bg-primary/95 flex items-center justify-center shadow-brutal border-2 border-black animate-in zoom-in-50 duration-300">
-              <BoltIcon className="w-6 h-6 text-primary-foreground fill-primary-foreground" />
-           </div>
-         )}
+      {/* Indicator Overlay - Shows static visual flair */}
+      <div className="absolute inset-0 z-20 flex items-center justify-center opacity-0 group-hover/video:opacity-100 transition-opacity duration-300 pointer-events-none">
+         <div className="w-10 h-10 rounded-full bg-primary/95 flex items-center justify-center shadow-brutal border-2 border-black">
+            <Bot className="w-5 h-5 text-primary-foreground" />
+         </div>
       </div>
-
     </div>
   )
 }

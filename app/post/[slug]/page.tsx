@@ -16,6 +16,7 @@ import { Badge } from '@/components/retroui/Badge'
 import { Button } from '@/components/retroui/Button'
 import { DownloadPdfButton } from '@/components/post/DownloadPdfButton'
 import { BookmarkButton } from '@/components/collections/BookmarkButton'
+import { VideoHero } from '@/components/post/VideoHero'
 import { Zap, Eye, Flame, Settings, Trophy } from 'lucide-react'
 
 export default async function PostPage({
@@ -126,23 +127,10 @@ export default async function PostPage({
                     </h2>
                   )}
                   <div className="w-full overflow-hidden bg-black aspect-video relative group flex items-center justify-center border-brutal-thick shadow-brutal">
-                    <video 
-                       key={post.videoThumbnail} 
-                       autoPlay 
-                       loop 
-                       muted
-                       controls
-                       playsInline
-                       preload="auto"
-                       poster={post.coverImageUrl || (post.thumbnail ? getImageUrl(post.thumbnail) : undefined)}
-                       className="w-full h-full object-cover group-hover:opacity-100 transition-opacity"
-                    >
-                       <source 
-                          src={post.videoThumbnail} 
-                          type="video/mp4" 
-                       />
-                       Your browser does not support the video tag.
-                    </video>
+                    <VideoHero 
+                       src={post.videoThumbnail} 
+                       poster={post.coverImageUrl || (post.thumbnail ? getImageUrl(post.thumbnail) : undefined)} 
+                    />
                   </div>
                </div>
             ) : (post.coverImageUrl || post.thumbnail) && (
@@ -182,7 +170,7 @@ export default async function PostPage({
                     components={{
                       img({ node, ...props }: any) {
                         if (props.alt === 'Video') {
-                          return <video src={props.src} controls className="w-full my-4" />
+                          return <video src={props.src} controls playsInline crossOrigin="anonymous" className="w-full my-4 border-2 border-slate-100 rounded-lg shadow-sm" />
                         }
                         return (
                           <span className="block text-center text-[9px] italic text-[#6b7280] mb-4 mt-2 break-inside-avoid">
