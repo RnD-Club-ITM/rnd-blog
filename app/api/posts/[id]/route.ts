@@ -39,9 +39,9 @@ export async function PUT(
                  authorDetails,
                  tags: (tags || []).map((t: string) => t.toLowerCase()),
                  isEdited: true,
-                 ...(coverImageUrl && { coverImageUrl }), 
-                 ...(videoThumbnail && { videoThumbnail }),
-                 ...(videoTitle && { videoTitle }),
+                 coverImageUrl: coverImageUrl || null,
+                 videoThumbnail: videoThumbnail || null,
+                 videoTitle: videoTitle || null,
                  attachResearchPaper: !!attachResearchPaper,
              })
             .commit()

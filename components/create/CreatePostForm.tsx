@@ -56,6 +56,7 @@ interface PostFormProps {
     content: string;
     tags: string[];
     coverImageUrl?: string;
+    videoThumbnail?: string;
     videoTitle?: string;
     attachResearchPaper?: boolean;
   };
@@ -80,7 +81,7 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
     content: initialData?.content || "",
     tags: initialData?.tags || [],
     coverImageUrl: initialData?.coverImageUrl || "",
-    videoThumbnail: "", // New field for Cloudinary CDN URL
+    videoThumbnail: initialData?.videoThumbnail || "", 
     videoTitle: initialData?.videoTitle || "",
     attachResearchPaper: initialData?.attachResearchPaper || false,
   });
@@ -357,11 +358,19 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
   const [isCapturing, setIsCapturing] = useState(false);
 
   const handleCaptureThumbnail = async () => {
-    if (!videoCaptureRef.current) return;
+    const video = videoCaptureRef.current;
+    if (!video) return;
 
     try {
       setIsCapturing(true);
-      const video = videoCaptureRef.current;
+
+      // Ensure video is ready to be drawn
+      if (video.readyState < 2) {
+        toast.error("Video is still loading. Please playback for a second and try again.");
+        setIsCapturing(false);
+        return;
+      }
+
       const canvas = document.createElement("canvas");
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -376,7 +385,7 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
       const blob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob((b) => {
           if (b) resolve(b);
-          else reject(new Error("Failed to create blob"));
+          else reject(new Error("Failed to create blob from video frame"));
         }, "image/jpeg", 0.9);
       });
 
@@ -984,22 +993,42 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
                                <Image src={formData.coverImageUrl} alt="Current Thumbnail" fill className="object-cover" />
                             </div>
                             <div className="flex-1">
-                               <p className="text-[10px] font-bold text-success flex items-center gap-1">
-                                  <CheckCircle className="w-3 h-3" /> Custom Thumbnail Active
-                                </p>
-                               <p className="text-[9px] text-muted-foreground">This frame will be shown on the explore cards.</p>
-                            </div>
-                            <Button 
-                              type="button" 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handleChange("coverImageUrl", "")}
-                              className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                            >
-                               <Trash className="w-3 h-3" />
-                            </Button>
-                         </div>
-                      )}
+                                <p className="text-[10px] font-bold text-success flex items-center gap-1">
+                                   <CheckCircle className="w-3 h-3" /> Custom Thumbnail Active
+                                 </p>
+                                <p className="text-[9px] text-muted-foreground truncate max-w-[150px]">Using captured frame as explore cover.</p>
+                             </div>
+                             <div className="flex gap-1 shrink-0">
+                                <Button 
+                                  type="button" 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => handleChange("coverImageUrl", "")}
+                                  className="text-red-500 hover:text-red-600 hover:bg-neutral-100 h-7 w-7 p-0"
+                                  title="Clear Captured Frame"
+                                >
+                                   <Trash className="w-3 h-3" />
+                                </Button>
+                             </div>
+                          </div>
+                       )}
+
+                       {/* Option to clear video entirely */}
+                       <div className="pt-2 border-t border-black/5 flex justify-end">
+                          <Button 
+                            type="button" 
+                            variant="link" 
+                            size="sm" 
+                            onClick={() => {
+                               handleChange("videoThumbnail", "");
+                               handleChange("videoTitle", "");
+                               handleChange("coverImageUrl", "");
+                            }}
+                            className="text-[10px] text-muted-foreground hover:text-red-500 h-auto p-0"
+                          >
+                             Remove Video & All Settings
+                          </Button>
+                       </div>
                    </div>
                 )}
               </div>
@@ -1319,6 +1348,10 @@ export function PostForm({ userId, initialData, postId }: PostFormProps) {
                            />
                            Your browser does not support the video tag.
                         </video>
+                     </div>
+                  ) : formData.coverImageUrl ? (
+                     <div className="mb-8 w-full overflow-hidden aspect-video relative border-2 border-slate-200">
+                        <Image src={formData.coverImageUrl} alt="Cover" fill className="object-cover" />
                      </div>
                   ) : (
                      <div className="mb-8 p-6 bg-slate-900/5 border-2 border-dashed border-slate-900/10 rounded-2xl text-center">

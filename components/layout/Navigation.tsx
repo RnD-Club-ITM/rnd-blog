@@ -18,6 +18,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { neobrutalAuth } from "@/lib/clerk-theme";
 
 const navLinks = [
   { href: "/explore", label: "Explore", icon: <Compass className="w-5 h-5" /> },
@@ -86,12 +87,7 @@ export function Navigation() {
 
             <SignedIn>
               <UserButton
-                appearance={{
-                  elements: {
-                    avatarBox: "w-8 h-8 sm:w-10 sm:h-10 border-2 border-black",
-                    userButtonPopoverCard: "border-brutal shadow-brutal",
-                  },
-                }}
+                appearance={neobrutalAuth}
                 afterSignOutUrl="/"
               >
                 <UserButton.MenuItems>

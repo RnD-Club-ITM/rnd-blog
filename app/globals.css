@@ -62,6 +62,7 @@
 
   --primary: #ff6b35;
   /* Ignition Orange */
+  --primary-rgb: 255, 107, 53;
   --primary-foreground: #ffffff;
 
   --secondary: #1a2947;
@@ -111,6 +112,7 @@
 
   --primary: #ff6b35;
   /* Ignition Orange */
+  --primary-rgb: 255, 107, 53;
   --primary-foreground: #ffffff;
 
   --secondary: #27272a;
@@ -207,13 +209,13 @@
   }
 
   100% {
-    transform: scale(1) translate(var(--x), var(--y));
+    transform: scale(1) translate(var(--x, 20px), var(--y, 20px));
     opacity: 0;
   }
 }
 
 .animate-spark-burst {
-  animation: spark-burst 400ms ease-out forwards;
+  animation: spark-burst 500ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* Prose Styling for Markdown */
@@ -322,4 +324,37 @@
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
+}
+
+/* Hide Clerk Dev Banner */
+.cl-internal-f9672r, 
+.cl-internal-ph6788,
+.cl-internal-1dauvpw,
+[data-clerk-internal-dev-badge],
+.cl-internal-10da00,
+#clerk-dev-badge,
+.cl-dev-badge,
+.cl-internal-b3fm6y,
+.cl-internal-1798ec6,
+.cl-internal-dfu3dn,
+div[class*="cl-internal-dev-badge"],
+div[class*="cl-internal-ph6788"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Auth Page Enhancements */
+.cl-card {
+  animation: authSlideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes authSlideIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
