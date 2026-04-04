@@ -1,8 +1,8 @@
 import dynamic from "next/dynamic";
-import "tldraw/tldraw.css";
+import React, { memo } from "react";
 
 // Dynamically import Tldraw with SSR disabled to avoid production issues with browser-only APIs
-const Tldraw = dynamic(async () => (await import("tldraw")).Tldraw, {
+const TldrawComponent = dynamic(async () => (await import("tldraw")).Tldraw, {
   ssr: false,
   loading: () => (
     <div className="w-full h-full flex flex-col items-center justify-center bg-white gap-3">
@@ -20,10 +20,18 @@ interface WorkspaceBoardProps {
   collaborationId: string;
 }
 
-export function WorkspaceBoard({ collaborationId }: WorkspaceBoardProps) {
+export const WorkspaceBoard = memo(function WorkspaceBoard({ collaborationId }: WorkspaceBoardProps) {
+  if (!collaborationId) return null;
+  
   return (
-    <div className="w-full h-full border-2 border-black rounded-lg overflow-hidden bg-white shadow-[3px_3px_0_0_rgba(0,0,0,1)]">
-      <Tldraw persistenceKey={`workspace-${collaborationId}`} />
+    <div className="w-full h-full relative border-2 border-black rounded-lg overflow-hidden bg-white shadow-[3px_3px_0_0_rgba(0,0,0,1)]">
+      <div className="absolute inset-0 z-0">
+        <TldrawComponent 
+          key={collaborationId} 
+          persistenceKey={`workspace-${collaborationId}`} 
+          autoFocus={false}
+        />
+      </div>
     </div>
   );
-}
+});

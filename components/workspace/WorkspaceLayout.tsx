@@ -275,7 +275,7 @@ export function WorkspaceLayout({ collaboration }: WorkspaceLayoutProps) {
 
         {/* ─── Right Panel: Whiteboard ─────────────── */}
         <div
-          className={`flex-1 h-full relative transition-all duration-300 ease-in-out ml-0 md:ml-2
+          className={`flex-1 h-full relative ml-0 md:ml-2
             ${activePanel === "board" ? "block" : "hidden md:block"
             }
             ${isBoardExpanded
