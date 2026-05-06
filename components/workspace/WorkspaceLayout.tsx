@@ -6,13 +6,12 @@ import { format } from "date-fns";
 import { getImageUrl } from "@/lib/sanity/client";
 import { WorkspaceChat } from "@/components/workspace/WorkspaceChat";
 import { WorkspaceBoard } from "@/components/workspace/WorkspaceBoard";
+import { WorkspacePlanning } from "@/components/workspace/WorkspacePlanning";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
-  FaArrowLeft,
-  FaArrowRight,
   FaBookOpen,
   FaCheck,
   FaCircle,
@@ -40,17 +39,6 @@ type ViewKey =
   | "planning"
   | "resources"
   | "canvas";
-
-type TaskStatus = "todo" | "progress" | "review" | "done";
-
-interface WorkspaceTask {
-  id: string;
-  title: string;
-  status: TaskStatus;
-  tag: string;
-  priority: "high" | "medium" | "low";
-  assigneeId?: string;
-}
 
 interface WorkspaceResource {
   id: string;
@@ -130,6 +118,22 @@ interface ChatContext {
   memberAvatarUrl?: string;
 }
 
+interface PlanningTaskSummary {
+  _id: string;
+  completionCount?: number;
+}
+
+interface PlanningColumnSummary {
+  _id: string;
+  title: string;
+  tasks: PlanningTaskSummary[];
+}
+
+interface PlanningBoardSummary {
+  columns: PlanningColumnSummary[];
+  completedMembersCount?: number;
+}
+
 const DEFAULT_CHAT_CHANNELS = [
   {
     slug: "announcements",
@@ -160,13 +164,6 @@ const statusConfig: Record<string, { label: string; tone: string }> = {
   completed: { label: "Completed", tone: "bg-blue-50 text-blue-700" },
 };
 
-const columns: { key: TaskStatus; label: string }[] = [
-  { key: "todo", label: "To Do" },
-  { key: "progress", label: "In Progress" },
-  { key: "review", label: "In Review" },
-  { key: "done", label: "Done" },
-];
-
 function getInitials(name?: string | null) {
   if (!name) return "?";
   return name
@@ -186,38 +183,15 @@ function formatWorkspaceDate(value?: string) {
   }
 }
 
-function seedTasks(): WorkspaceTask[] {
-  return [];
-}
-
 function seedResources(): WorkspaceResource[] {
   return [];
 }
 
-const LEGACY_TASK_IDS = new Set(["brief", "setup", "docs", "research", "sync"]);
 const LEGACY_RESOURCE_IDS = new Set(["repo", "doc", "scope"]);
-
-function sanitizeStoredTasks(tasks: WorkspaceTask[] | undefined) {
-  if (!tasks?.length) return [];
-  return tasks.filter((task) => !LEGACY_TASK_IDS.has(task.id));
-}
 
 function sanitizeStoredResources(resources: WorkspaceResource[] | undefined) {
   if (!resources?.length) return [];
   return resources.filter((resource) => !LEGACY_RESOURCE_IDS.has(resource.id));
-}
-
-function getPriorityClasses(priority: WorkspaceTask["priority"]) {
-  if (priority === "high") return "bg-orange-100 text-orange-700";
-  if (priority === "medium") return "bg-blue-100 text-blue-700";
-  return "bg-zinc-100 text-zinc-600";
-}
-
-function getTaskTagClasses(status: TaskStatus) {
-  if (status === "progress") return "bg-orange-50 text-orange-700";
-  if (status === "done") return "bg-emerald-50 text-emerald-700";
-  if (status === "review") return "bg-blue-50 text-blue-700";
-  return "bg-stone-100 text-stone-700";
 }
 
 function MemberAvatar({
@@ -281,7 +255,6 @@ function WorkspaceChannelSidebarContent({
           key: "announcements",
           label: "announcements",
           icon: "#",
-          accent: "bg-emerald-500",
         },
         {
           key: "chat",
@@ -306,9 +279,6 @@ function WorkspaceChannelSidebarContent({
               {item.icon}
             </span>
             <span>{item.label}</span>
-            {item.accent && unreadCount === 0 ? (
-              <span className={`ml-auto h-2 w-2 rounded-full ${item.accent}`} />
-            ) : null}
             {unreadCount > 0 ? (
               <span className="ml-auto rounded-full bg-[#FF5C00] px-2 py-0.5 font-mono text-[10px] text-white">
                 {unreadCount}
@@ -388,7 +358,6 @@ export function WorkspaceLayout({
   const { isLoading: chatAuthLoading, isAuthenticated } = useConvexAuth();
   const syncWorkspaceAccess = useMutation(api.workspaces.syncWorkspaceAccess);
   const [activeView, setActiveView] = useState<ViewKey>("announcements");
-  const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newResourceTitle, setNewResourceTitle] = useState("");
   const [newResourceUrl, setNewResourceUrl] = useState("");
   const [isUpdatingApplicant, setIsUpdatingApplicant] = useState<string | null>(
@@ -429,20 +398,7 @@ export function WorkspaceLayout({
   );
 
   const storageKey = `spark-workspace-${collaboration._id}`;
-  const seededTasks = useMemo(() => seedTasks(), []);
   const seededResources = useMemo(() => seedResources(), []);
-  const [tasks, setTasks] = useState<WorkspaceTask[]>(() => {
-    if (typeof window === "undefined") return seededTasks;
-    try {
-      const stored = window.localStorage.getItem(storageKey);
-      if (!stored) return seededTasks;
-      const parsed = JSON.parse(stored) as { tasks?: WorkspaceTask[] };
-      const cleaned = sanitizeStoredTasks(parsed.tasks);
-      return cleaned.length ? cleaned : seededTasks;
-    } catch {
-      return seededTasks;
-    }
-  });
   const [resources, setResources] = useState<WorkspaceResource[]>(() => {
     if (typeof window === "undefined") return seededResources;
     try {
@@ -458,26 +414,8 @@ export function WorkspaceLayout({
  
   useEffect(() => {
     if (typeof window === "undefined") return;
-    window.localStorage.setItem(
-      storageKey,
-      JSON.stringify({ tasks, resources }),
-    );
-  }, [resources, storageKey, tasks]);
-
-  const taskCounts = useMemo(() => {
-    return columns.reduce(
-      (acc, column) => {
-        acc[column.key] = tasks.filter((task) => task.status === column.key).length;
-        return acc;
-      },
-      { todo: 0, progress: 0, review: 0, done: 0 } as Record<TaskStatus, number>,
-    );
-  }, [tasks]);
-
-  const completedTasks = taskCounts.done;
-  const sprintProgress = tasks.length
-    ? Math.round((completedTasks / tasks.length) * 100)
-    : 0;
+    window.localStorage.setItem(storageKey, JSON.stringify({ resources }));
+  }, [resources, storageKey]);
   const quickLinks: QuickLink[] = [
     ...(collaboration.githubRepo
       ? [
@@ -510,42 +448,6 @@ export function WorkspaceLayout({
       action: () => setActiveView("planning"),
     },
   ];
-
-  const addTask = () => {
-    const title = newTaskTitle.trim();
-    if (!title) return;
-
-    setTasks((current) => [
-      ...current,
-      {
-        id: crypto.randomUUID(),
-        title,
-        status: "todo",
-        tag: "TASK",
-        priority: "medium",
-        assigneeId: collaboration.postedBy?._id,
-      },
-    ]);
-    setNewTaskTitle("");
-  };
-
-  const deleteTask = (taskId: string) => {
-    setTasks((current) => current.filter((task) => task.id !== taskId));
-  };
-
-  const moveTask = (taskId: string, direction: "left" | "right") => {
-    setTasks((current) =>
-      current.map((task) => {
-        if (task.id !== taskId) return task;
-        const currentIndex = columns.findIndex((column) => column.key === task.status);
-        const nextIndex =
-          direction === "left"
-            ? Math.max(0, currentIndex - 1)
-            : Math.min(columns.length - 1, currentIndex + 1);
-        return { ...task, status: columns[nextIndex].key };
-      }),
-    );
-  };
 
   const addResource = () => {
     const title = newResourceTitle.trim();
@@ -676,6 +578,32 @@ export function WorkspaceLayout({
   const chatPreparing =
     chatContext.convexConfigured &&
     (chatAuthLoading || (isAuthenticated && chatSyncStatus === "idle"));
+  const planningBoard = useQuery(
+    api.planning.board,
+    chatReady ? { workspaceId: collaboration._id } : "skip",
+  ) as PlanningBoardSummary | undefined;
+  const planningColumns = planningBoard?.columns || [];
+  const totalPlanningTasks = planningColumns.reduce(
+    (sum, column) => sum + column.tasks.length,
+    0,
+  );
+  const completedPlanningTasks = planningColumns
+    .reduce(
+      (sum, column) =>
+        sum + column.tasks.filter((task) => (task.completionCount ?? 0) > 0).length,
+      0,
+    );
+  const completedMembersCount = planningBoard?.completedMembersCount ?? 0;
+  const sprintProgress = totalPlanningTasks
+    ? Math.round((completedPlanningTasks / totalPlanningTasks) * 100)
+    : 0;
+  const planningUnavailableReason = !chatContext.convexConfigured
+    ? "Shared planning is unavailable because NEXT_PUBLIC_CONVEX_URL is missing."
+    : !chatAuthLoading && !isAuthenticated
+      ? "Clerk sign-in is active, but Convex is not seeing an authenticated session yet."
+      : chatSyncStatus === "error"
+        ? chatSyncError
+        : undefined;
 
   const renderView = () => {
     if (activeView === "announcements") {
@@ -774,8 +702,8 @@ export function WorkspaceLayout({
                       Current Progress
                     </div>
                     <div className="mt-2 text-sm font-semibold text-[#1B1814]">
-                      {taskCounts.progress + taskCounts.review} active task(s),{" "}
-                      {taskCounts.done} completed
+                      {completedMembersCount} member(s) have completed work,{" "}
+                      {completedPlanningTasks} task(s) touched
                     </div>
                   </div>
                 </section>
@@ -863,136 +791,14 @@ export function WorkspaceLayout({
 
     if (activeView === "planning") {
       return (
-        <div className="flex h-full flex-col overflow-hidden bg-[#FCFBF8]">
-          <div className="border-b border-[#E5E0D8] bg-white px-6 py-5">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <div className="flex items-center gap-3 text-sm font-semibold text-[#111]">
-                  <span className="font-mono text-sm text-[#8A8174]">▦</span>
-                  planning
-                </div>
-                <p className="mt-1 text-sm text-[#7A7267]">
-                  Sprint board for the collaboration. Add, move, and remove tasks from here.
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <input
-                  value={newTaskTitle}
-                  onChange={(event) => setNewTaskTitle(event.target.value)}
-                  onKeyDown={(event) => event.key === "Enter" && addTask()}
-                  placeholder="Add a new task"
-                  className="w-full rounded-lg border border-[#DED7CC] bg-[#FCFBF8] px-3 py-2 text-sm text-[#1B1814] outline-none placeholder:text-[#9B9287] focus:border-[#FF5C00] lg:w-64"
-                />
-                <button
-                  onClick={addTask}
-                  className="inline-flex items-center gap-2 rounded-lg bg-[#FF5C00] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#E65400]"
-                >
-                  <FaPlus className="text-xs" />
-                  Task
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-x-auto overflow-y-hidden px-6 py-6">
-            <div className="flex min-w-max gap-4">
-              {columns.map((column) => {
-                const columnTasks = tasks.filter((task) => task.status === column.key);
-                return (
-                  <div
-                    key={column.key}
-                    className="flex w-[280px] flex-col rounded-2xl border border-[#E5E0D8] bg-white"
-                  >
-                    <div className="flex items-center justify-between border-b border-[#EFE9DE] px-4 py-4">
-                      <h3 className="text-sm font-semibold text-[#1B1814]">
-                        {column.label}
-                      </h3>
-                      <span className="rounded-full bg-[#F3EFE7] px-2.5 py-0.5 font-mono text-xs text-[#6E665A]">
-                        {columnTasks.length}
-                      </span>
-                    </div>
-                    <div className="flex flex-1 flex-col gap-3 p-4">
-                      {columnTasks.map((task) => {
-                        const assignee = allMembers.find(
-                          (member) => member._id === task.assigneeId,
-                        );
-
-                        return (
-                          <div
-                            key={task.id}
-                            className="rounded-xl border border-[#ECE5DB] bg-[#FFFEFC] p-4 shadow-[0_10px_24px_rgba(17,17,17,0.04)]"
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <span
-                                className={`rounded-md px-2 py-1 font-mono text-[10px] uppercase tracking-[0.14em] ${getTaskTagClasses(task.status)}`}
-                              >
-                                {task.tag}
-                              </span>
-                              <span
-                                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${getPriorityClasses(task.priority)}`}
-                              >
-                                {task.priority}
-                              </span>
-                            </div>
-                            <p className="mt-3 text-sm font-medium leading-6 text-[#28231C]">
-                              {task.title}
-                            </p>
-                            <div className="mt-4 flex items-center justify-between">
-                              <div className="flex items-center gap-2 text-xs text-[#7A7267]">
-                                {assignee ? (
-                                  <>
-                                    <MemberAvatar member={assignee} size={24} />
-                                    <span>{assignee.name}</span>
-                                  </>
-                                ) : (
-                                  <span>Unassigned</span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <button
-                                  onClick={() => deleteTask(task.id)}
-                                  className="rounded-md border border-[#E5E0D8] p-1.5 text-[#7A7267] transition hover:border-[#FF5C00] hover:text-[#FF5C00]"
-                                  aria-label="Delete task"
-                                >
-                                  <FaTrash className="text-[10px]" />
-                                </button>
-                                <button
-                                  onClick={() => moveTask(task.id, "left")}
-                                  className="rounded-md border border-[#E5E0D8] p-1.5 text-[#7A7267] transition hover:border-[#FF5C00] hover:text-[#FF5C00]"
-                                  aria-label="Move task left"
-                                >
-                                  <FaArrowLeft className="text-[10px]" />
-                                </button>
-                                <button
-                                  onClick={() => moveTask(task.id, "right")}
-                                  className="rounded-md border border-[#E5E0D8] p-1.5 text-[#7A7267] transition hover:border-[#FF5C00] hover:text-[#FF5C00]"
-                                  aria-label="Move task right"
-                                >
-                                  <FaArrowRight className="text-[10px]" />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-
-                      {!columnTasks.length && (
-                        <div className="flex min-h-32 items-center justify-center rounded-xl border border-dashed border-[#E5E0D8] bg-[#FCFBF8] p-4 text-center text-sm text-[#948B80]">
-                          No tasks here yet.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            {!tasks.length && (
-              <div className="mt-6 rounded-2xl border border-dashed border-[#E5E0D8] bg-white p-6 text-center text-sm text-[#7A7267]">
-                No planning tasks yet. Start by adding the first real task for this project.
-              </div>
-            )}
-          </div>
-        </div>
+        <WorkspacePlanning
+          workspaceId={collaboration._id}
+          planningReady={chatReady}
+          planningPreparing={chatPreparing}
+          planningUnavailableReason={planningUnavailableReason}
+          canEdit={chatContext.currentUserRole === "host"}
+          memberCount={memberCount}
+        />
       );
     }
 
@@ -1114,7 +920,7 @@ export function WorkspaceLayout({
                   {memberCount} / {maxPositions + 1} members
                 </span>
                 <span>•</span>
-                <span>{taskCounts.progress} task(s) in progress</span>
+                <span>{completedMembersCount} member(s) completed work</span>
               </div>
               <div className="mt-2 flex flex-wrap gap-2">
                 {(collaboration.skillsNeeded || []).slice(0, 4).map((skill: string) => (
@@ -1351,25 +1157,27 @@ export function WorkspaceLayout({
               Workspace Snapshot
             </div>
 
-            <div className="mt-4 rounded-2xl border border-[#E5E0D8] p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-[#1B1814]">
-                <FaClock className="text-xs text-[#FF5C00]" />
-                Sprint Progress
+            {chatContext.currentUserRole === "host" ? (
+              <div className="mt-4 rounded-2xl border border-[#E5E0D8] p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-[#1B1814]">
+                  <FaClock className="text-xs text-[#FF5C00]" />
+                  Sprint Progress
+                </div>
+                <p className="mt-2 font-mono text-xs text-[#8A8174]">
+                  {completedMembersCount} of {memberCount} members have completed at least one task
+                </p>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#EEE8DE]">
+                  <div
+                    className="h-full rounded-full bg-[#FF5C00]"
+                    style={{ width: `${sprintProgress}%` }}
+                  />
+                </div>
+                <div className="mt-2 flex justify-between text-xs text-[#7A7267]">
+                  <span>{sprintProgress}% done</span>
+                  <span>{completedPlanningTasks} task(s) touched</span>
+                </div>
               </div>
-              <p className="mt-2 font-mono text-xs text-[#8A8174]">
-                {completedTasks} of {tasks.length} tasks completed
-              </p>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#EEE8DE]">
-                <div
-                  className="h-full rounded-full bg-[#FF5C00]"
-                  style={{ width: `${sprintProgress}%` }}
-                />
-              </div>
-              <div className="mt-2 flex justify-between text-xs text-[#7A7267]">
-                <span>{sprintProgress}% done</span>
-                <span>{taskCounts.progress} active</span>
-              </div>
-            </div>
+            ) : null}
 
             <div className="mt-4 grid gap-3">
               <div className="rounded-2xl border border-[#E5E0D8] p-4">

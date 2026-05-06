@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { v2 as cloudinary } from 'cloudinary';
 
 // Configure Cloudinary with env variables
@@ -8,8 +9,24 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-import { Readable } from 'stream';
+function getErrorMessage(error: unknown) {
+    if (error instanceof Error) {
+        return error.message;
+    }
+    return 'Unknown error';
+}
 
+function getErrorStatus(error: unknown) {
+    if (
+        typeof error === 'object' &&
+        error !== null &&
+        'http_code' in error &&
+        typeof (error as { http_code?: unknown }).http_code === 'number'
+    ) {
+        return (error as { http_code: number }).http_code;
+    }
+    return 500;
+}
 export async function POST(req: NextRequest) {
     try {
         if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
@@ -69,14 +86,69 @@ export async function POST(req: NextRequest) {
         });
 
         return NextResponse.json(result);
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Upload Error Details:', error);
         return NextResponse.json(
             { 
-              error: error.message || 'Upload failed',
-              details: error.http_code ? `Error ${error.http_code}: ${error.message}` : error.message
+              error: getErrorMessage(error) || 'Upload failed',
+              details:
+                typeof error === 'object' &&
+                error !== null &&
+                'http_code' in error &&
+                typeof (error as { http_code?: unknown }).http_code === 'number'
+                    ? `Error ${String((error as { http_code: number }).http_code)}: ${getErrorMessage(error)}`
+                    : getErrorMessage(error)
             },
-            { status: error.http_code || 500 }
+            { status: getErrorStatus(error) }
+        );
+    }
+}
+
+export async function DELETE(req: NextRequest) {
+    try {
+        const { userId } = await auth();
+        if (!userId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+            return NextResponse.json(
+                { error: 'Server configuration error: Missing Cloudinary credentials.' },
+                { status: 500 }
+            );
+        }
+
+        const { publicId, resourceType } = await req.json();
+
+        if (!publicId || typeof publicId !== 'string') {
+            return NextResponse.json({ error: 'publicId is required' }, { status: 400 });
+        }
+
+        const normalizedResourceType =
+            typeof resourceType === 'string' && resourceType.length > 0
+                ? resourceType
+                : 'image';
+
+        const result = await cloudinary.uploader.destroy(publicId, {
+            resource_type: normalizedResourceType,
+            invalidate: true,
+        });
+
+        return NextResponse.json(result);
+    } catch (error: unknown) {
+        console.error('Delete Upload Error Details:', error);
+        return NextResponse.json(
+            {
+                error: getErrorMessage(error) || 'Delete failed',
+                details:
+                    typeof error === 'object' &&
+                    error !== null &&
+                    'http_code' in error &&
+                    typeof (error as { http_code?: unknown }).http_code === 'number'
+                        ? `Error ${String((error as { http_code: number }).http_code)}: ${getErrorMessage(error)}`
+                        : getErrorMessage(error),
+            },
+            { status: getErrorStatus(error) }
         );
     }
 }
