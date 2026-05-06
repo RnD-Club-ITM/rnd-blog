@@ -92,6 +92,19 @@ export default defineSchema({
     .index("by_message", ["messageId"])
     .index("by_message_user_emoji", ["messageId", "userId", "emoji"]),
 
+  workspaceResources: defineTable({
+    workspaceId: v.string(),
+    title: v.string(),
+    url: v.string(),
+    type: v.string(),
+    description: v.string(),
+    createdAt: v.number(),
+    createdBy: v.string(),
+    createdByName: v.string(),
+  })
+    .index("by_workspace_created_at", ["workspaceId", "createdAt"])
+    .index("by_workspace_creator", ["workspaceId", "createdBy"]),
+
   planningColumns: defineTable({
     workspaceId: v.string(),
     title: v.string(),

@@ -18,9 +18,10 @@ export default function CreateProjectPage() {
     projectName: '',
     description: '',
     skillsNeeded: '',
-    duration: '1-2 months',
-    commitment: '5-10 hours/week',
-    maxPositions: 3
+    duration: '',
+    commitment: '',
+    openToAll: true,
+    maxPositions: ''
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,7 +36,14 @@ export default function CreateProjectPage() {
       const res = await fetch('/api/collaborate/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          maxPositions: formData.openToAll
+            ? null
+            : formData.maxPositions
+              ? parseInt(formData.maxPositions, 10)
+              : null,
+        })
       })
 
       if (!res.ok) throw new Error('Failed to create project')
@@ -108,46 +116,62 @@ export default function CreateProjectPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block font-bold mb-2">Duration</label>
-                  <select
-                    className="w-full p-3 border-2 border-black rounded-lg focus:shadow-brutal-sm outline-none transition-all bg-background"
-                    value={formData.duration}
-                    onChange={e => setFormData({ ...formData, duration: e.target.value })}
-                  >
-                    <option>1-2 weeks</option>
-                    <option>3-4 weeks</option>
-                    <option>1-2 months</option>
-                    <option>3+ months</option>
-                  </select>
-                </div>
-
+              <div>
+                <label className="block font-bold mb-2">Duration / Timeline</label>
+                <input
+                  type="text"
+                  className="w-full p-3 border-2 border-black rounded-lg focus:shadow-brutal-sm outline-none transition-all bg-background"
+                  placeholder="e.g. 1 day event, Slot 1: 10 AM - 1 PM"
+                  value={formData.duration}
+                  onChange={e => setFormData({ ...formData, duration: e.target.value })}
+                />
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Fully customizable. You can write exact timing for tomorrow&apos;s slot here.
+                </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block font-bold mb-2">Weekly Commitment</label>
+              <div className="space-y-4 rounded-lg border-2 border-black/10 bg-black/5 p-4">
+                <div className="flex items-start gap-3">
                   <input
-                    type="text"
-                    className="w-full p-3 border-2 border-black rounded-lg focus:shadow-brutal-sm outline-none transition-all bg-background"
-                    placeholder="e.g. 5-10 hours"
-                    value={formData.commitment}
-                    onChange={e => setFormData({ ...formData, commitment: e.target.value })}
+                    id="openToAll"
+                    type="checkbox"
+                    checked={formData.openToAll}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        openToAll: e.target.checked,
+                        maxPositions: e.target.checked ? '' : formData.maxPositions,
+                      })
+                    }
+                    className="mt-1 h-4 w-4 accent-[#FF5C00]"
                   />
+                  <div>
+                    <label htmlFor="openToAll" className="block font-bold">
+                      Keep this workspace open to everyone
+                    </label>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Best for tomorrow&apos;s event. Students can keep joining until you decide to close it.
+                    </p>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block font-bold mb-2">Number of People (Max Entries)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="20"
-                    className="w-full p-3 border-2 border-black rounded-lg focus:shadow-brutal-sm outline-none transition-all bg-background"
-                    value={formData.maxPositions}
-                    onChange={e => setFormData({ ...formData, maxPositions: parseInt(e.target.value) })}
-                  />
-                </div>
+                {!formData.openToAll ? (
+                  <div>
+                    <label className="block font-bold mb-2">Limit participants to</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="500"
+                      className="w-full p-3 border-2 border-black rounded-lg focus:shadow-brutal-sm outline-none transition-all bg-background"
+                      placeholder="e.g. 20"
+                      value={formData.maxPositions}
+                      onChange={e => setFormData({ ...formData, maxPositions: e.target.value })}
+                    />
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Leave open-to-all enabled if you don&apos;t want a seat cap.
+                    </p>
+                  </div>
+                ) : null}
               </div>
 
               <Button

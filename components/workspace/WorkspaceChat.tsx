@@ -7,6 +7,7 @@ import { useUser } from "@clerk/nextjs";
 import { api } from "@/convex/_generated/api";
 import { format, isToday, isYesterday } from "date-fns";
 import { toast } from "sonner";
+import { generateClientId } from "@/lib/utils/generateClientId";
 import {
   FaComments,
   FaFaceSmile,
@@ -151,19 +152,19 @@ function normalizeUploadFileName(file: File, result: CloudinaryUploadResult) {
 
 function SetupNotice({ reason }: { reason?: string }) {
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-white">
-      <div className="border-b border-[#E5E0D8] bg-white px-5 py-4">
-        <div className="flex items-center gap-2 text-sm font-semibold text-[#111111]">
+    <div className="flex h-full flex-col overflow-hidden bg-white dark:bg-[#111111]">
+      <div className="border-b border-[#E5E0D8] bg-white px-5 py-4 dark:border-[#2A2A2A] dark:bg-[#111111]">
+        <div className="flex items-center gap-2 text-sm font-semibold text-[#111111] dark:text-[#F6F2EA]">
           <FaTriangleExclamation className="text-[#FF5C00]" />
           Chat setup required
         </div>
       </div>
-      <div className="flex flex-1 items-center justify-center bg-[#FCFBF8] px-6 text-center">
-        <div className="max-w-md rounded-2xl border border-[#E5E0D8] bg-white p-6">
-          <p className="text-sm font-semibold text-[#181512]">
+      <div className="flex flex-1 items-center justify-center bg-[#FCFBF8] px-6 text-center dark:bg-[#0D0D0D]">
+        <div className="max-w-md rounded-2xl border border-[#E5E0D8] bg-white p-6 dark:border-[#2A2A2A] dark:bg-[#161616]">
+          <p className="text-sm font-semibold text-[#181512] dark:text-[#F6F2EA]">
             Realtime workspace chat is unavailable right now.
           </p>
-          <p className="mt-2 text-sm leading-6 text-[#7A7267]">
+          <p className="mt-2 text-sm leading-6 text-[#7A7267] dark:text-[#A8A093]">
             {reason ||
               "Add `NEXT_PUBLIC_CONVEX_URL`, configure the Clerk Convex JWT issuer, and run `npx convex dev` to enable realtime workspace chat."}
           </p>
@@ -186,7 +187,7 @@ function AttachmentCard({
         href={attachment.url}
         target="_blank"
         rel="noreferrer"
-        className={`mt-2 block overflow-hidden rounded-xl border border-[#E7E0D6] bg-white ${
+        className={`mt-2 block overflow-hidden rounded-xl border border-[#E7E0D6] bg-white dark:border-[#2E2E2E] dark:bg-[#171717] ${
           compact ? "max-w-[220px]" : "max-w-[320px]"
         }`}
       >
@@ -198,8 +199,8 @@ function AttachmentCard({
           unoptimized
           className="max-h-56 w-full object-cover"
         />
-        <div className="border-t border-[#E7E0D6] px-3 py-2 text-xs text-[#5E564B]">
-          <div className="font-medium text-[#28231C]">{attachment.fileName}</div>
+        <div className="border-t border-[#E7E0D6] px-3 py-2 text-xs text-[#5E564B] dark:border-[#2E2E2E] dark:text-[#A8A093]">
+          <div className="font-medium text-[#28231C] dark:text-[#F6F2EA]">{attachment.fileName}</div>
           <div>{formatFileSize(attachment.fileSize)}</div>
         </div>
       </a>
@@ -211,16 +212,16 @@ function AttachmentCard({
       href={attachment.url}
       target="_blank"
       rel="noreferrer"
-      className="mt-2 flex max-w-[320px] items-center gap-3 rounded-xl border border-[#E7E0D6] bg-white px-3 py-3 text-left transition hover:border-[#FF5C00]"
+      className="mt-2 flex max-w-[320px] items-center gap-3 rounded-xl border border-[#E7E0D6] bg-white px-3 py-3 text-left transition hover:border-[#FF5C00] dark:border-[#2E2E2E] dark:bg-[#171717]"
     >
-      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FFF4EE] text-[#FF5C00]">
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FFF4EE] text-[#FF5C00] dark:bg-[#2A1B14]">
         <FaPaperclip className="text-sm" />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-medium text-[#28231C]">
+        <div className="truncate text-sm font-medium text-[#28231C] dark:text-[#F6F2EA]">
           {attachment.fileName}
         </div>
-        <div className="text-xs text-[#7A7267]">
+        <div className="text-xs text-[#7A7267] dark:text-[#A8A093]">
           {attachment.fileType || "File"} · {formatFileSize(attachment.fileSize)}
         </div>
       </div>
@@ -347,7 +348,7 @@ function SyncedRealtimeWorkspaceChat({
         workspaceId,
         channelSlug,
         body: trimmed,
-        clientMessageId: crypto.randomUUID(),
+        clientMessageId: generateClientId(),
       });
       setNewMessage("");
       inputRef.current?.focus();
@@ -486,7 +487,7 @@ function SyncedRealtimeWorkspaceChat({
         workspaceId,
         channelSlug,
         body: newMessage.trim(),
-        clientMessageId: crypto.randomUUID(),
+        clientMessageId: generateClientId(),
         attachment: {
           publicId: uploadResult.public_id,
           url: uploadResult.secure_url,
@@ -516,29 +517,29 @@ function SyncedRealtimeWorkspaceChat({
   let unreadSeparatorShown = false;
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-white">
-      <div className="flex flex-shrink-0 items-center justify-between border-b border-[#E5E0D8] bg-white px-5 py-4">
+    <div className="flex h-full flex-col overflow-hidden bg-white dark:bg-[#111111]">
+      <div className="flex flex-shrink-0 items-center justify-between border-b border-[#E5E0D8] bg-white px-5 py-4 dark:border-[#2A2A2A] dark:bg-[#111111]">
         <div>
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#FF5C00] text-white">
               <FaHashtag className="text-xs" />
             </div>
-            <h3 className="text-sm font-semibold text-[#111111]">{title}</h3>
+            <h3 className="text-sm font-semibold text-[#111111] dark:text-[#F6F2EA]">{title}</h3>
           </div>
-          <p className="mt-1 text-xs text-[#7A7267]">{description}</p>
+          <p className="mt-1 text-xs text-[#7A7267] dark:text-[#A8A093]">{description}</p>
         </div>
-        <span className="rounded-full bg-[#F3EFE7] px-2 py-0.5 font-mono text-[10px] text-[#7A7267]">
+        <span className="rounded-full bg-[#F3EFE7] px-2 py-0.5 font-mono text-[10px] text-[#7A7267] dark:bg-[#2B2B2B] dark:text-[#C8C2B7]">
           {messages.length} msgs
         </span>
       </div>
 
-      <div className="flex-1 overflow-y-auto bg-[#FCFBF8] px-5 py-4" ref={scrollRef}>
+      <div className="flex-1 overflow-y-auto bg-[#FCFBF8] px-5 py-4 dark:bg-[#0D0D0D]" ref={scrollRef}>
         {status === "CanLoadMore" || status === "LoadingMore" ? (
           <div className="mb-4 flex justify-center">
             <button
               onClick={() => loadMore(20)}
               disabled={status === "LoadingMore"}
-              className="rounded-full border border-[#E5E0D8] bg-white px-3 py-1 text-xs font-medium text-[#5E564B] transition hover:border-[#FF5C00] hover:text-[#FF5C00] disabled:opacity-60"
+              className="rounded-full border border-[#E5E0D8] bg-white px-3 py-1 text-xs font-medium text-[#5E564B] transition hover:border-[#FF5C00] hover:text-[#FF5C00] disabled:opacity-60 dark:border-[#3A342C] dark:bg-[#171717] dark:text-[#C8C2B7]"
             >
               {status === "LoadingMore" ? "Loading history..." : "Load older messages"}
             </button>
@@ -582,21 +583,21 @@ function SyncedRealtimeWorkspaceChat({
                 <React.Fragment key={message._id}>
                   {shouldShowSeparator ? (
                     <div className="my-3 flex items-center gap-3">
-                      <div className="h-px flex-1 bg-[#E7E0D6]" />
-                      <span className="rounded-full border border-[#E7E0D6] bg-white px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#8A8174]">
+                      <div className="h-px flex-1 bg-[#E7E0D6] dark:bg-[#2E2E2E]" />
+                      <span className="rounded-full border border-[#E7E0D6] bg-white px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#8A8174] dark:border-[#2E2E2E] dark:bg-[#161616] dark:text-[#8F887B]">
                         {separator}
                       </span>
-                      <div className="h-px flex-1 bg-[#E7E0D6]" />
+                      <div className="h-px flex-1 bg-[#E7E0D6] dark:bg-[#2E2E2E]" />
                     </div>
                   ) : null}
 
                   {shouldShowUnreadSeparator ? (
                     <div className="my-3 flex items-center gap-3">
-                      <div className="h-px flex-1 bg-[#FFD7C2]" />
-                      <span className="rounded-full border border-[#FFD7C2] bg-[#FFF4EE] px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#D94E00]">
+                      <div className="h-px flex-1 bg-[#FFD7C2] dark:bg-[#4B2D20]" />
+                      <span className="rounded-full border border-[#FFD7C2] bg-[#FFF4EE] px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#D94E00] dark:border-[#4B2D20] dark:bg-[#2A1B14] dark:text-[#FFAA73]">
                         New
                       </span>
-                      <div className="h-px flex-1 bg-[#FFD7C2]" />
+                      <div className="h-px flex-1 bg-[#FFD7C2] dark:bg-[#4B2D20]" />
                     </div>
                   ) : null}
 
@@ -609,7 +610,7 @@ function SyncedRealtimeWorkspaceChat({
 
                     <div className={`max-w-[78%] ${isMe ? "ml-auto" : ""}`}>
                       {!isMe ? (
-                        <div className="mb-0.5 ml-1 text-[11px] font-semibold text-[#28231C]">
+                        <div className="mb-0.5 ml-1 text-[11px] font-semibold text-[#28231C] dark:text-[#F6F2EA]">
                           {message.authorName}
                         </div>
                       ) : null}
@@ -629,7 +630,7 @@ function SyncedRealtimeWorkspaceChat({
                                       current === message._id ? null : message._id,
                                     )
                                   }
-                                  className="rounded-full border border-[#E7E0D6] bg-white px-2 py-1 text-[11px] text-[#5E564B] transition hover:border-[#FF5C00] hover:text-[#FF5C00]"
+                                  className="rounded-full border border-[#E7E0D6] bg-white px-2 py-1 text-[11px] text-[#5E564B] transition hover:border-[#FF5C00] hover:text-[#FF5C00] dark:border-[#3A342C] dark:bg-[#171717] dark:text-[#C8C2B7]"
                                   title="React to message"
                                 >
                                   <FaFaceSmile />
@@ -637,7 +638,7 @@ function SyncedRealtimeWorkspaceChat({
 
                                 {showReactionPicker ? (
                                   <div
-                                    className={`absolute top-9 z-30 flex gap-1 rounded-full border border-[#E7E0D6] bg-white px-2 py-1 shadow-[0_8px_30px_rgba(24,21,18,0.08)] ${
+                                    className={`absolute top-9 z-30 flex gap-1 rounded-full border border-[#E7E0D6] bg-white px-2 py-1 shadow-[0_8px_30px_rgba(24,21,18,0.08)] dark:border-[#3A342C] dark:bg-[#171717] dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)] ${
                                       isMe ? "left-0" : "right-0"
                                     }`}
                                   >
@@ -654,8 +655,8 @@ function SyncedRealtimeWorkspaceChat({
                                           disabled={pendingReactionKey === reactionKey}
                                           className={`flex h-8 w-8 items-center justify-center rounded-full text-sm transition ${
                                             reaction?.reactedByMe
-                                              ? "bg-[#FFF1E8]"
-                                              : "hover:bg-[#FFF7F2]"
+                                              ? "bg-[#FFF1E8] dark:bg-[#2A1B14]"
+                                              : "hover:bg-[#FFF7F2] dark:hover:bg-[#232323]"
                                           } disabled:opacity-50`}
                                         >
                                           {emoji}
@@ -670,7 +671,7 @@ function SyncedRealtimeWorkspaceChat({
                             {canEdit ? (
                               <button
                                 onClick={() => handleStartEditing(message)}
-                                className="rounded-full border border-[#E7E0D6] bg-white px-2 py-1 text-[11px] text-[#5E564B] transition hover:border-[#FF5C00] hover:text-[#FF5C00]"
+                                className="rounded-full border border-[#E7E0D6] bg-white px-2 py-1 text-[11px] text-[#5E564B] transition hover:border-[#FF5C00] hover:text-[#FF5C00] dark:border-[#3A342C] dark:bg-[#171717] dark:text-[#C8C2B7]"
                                 title="Edit message"
                               >
                                 <FaPen />
@@ -680,7 +681,7 @@ function SyncedRealtimeWorkspaceChat({
                               <button
                                 onClick={() => void handleDelete(message)}
                                 disabled={pendingDeleteId === message._id}
-                                className="rounded-full border border-[#E7E0D6] bg-white px-2 py-1 text-[11px] text-[#5E564B] transition hover:border-[#C23B00] hover:text-[#C23B00] disabled:opacity-50"
+                                className="rounded-full border border-[#E7E0D6] bg-white px-2 py-1 text-[11px] text-[#5E564B] transition hover:border-[#C23B00] hover:text-[#C23B00] disabled:opacity-50 dark:border-[#3A342C] dark:bg-[#171717] dark:text-[#C8C2B7]"
                                 title="Delete message"
                               >
                                 <FaTrash />
@@ -692,10 +693,10 @@ function SyncedRealtimeWorkspaceChat({
                         <div
                           className={`rounded-xl px-3 py-2 ${
                             isDeleted
-                              ? "border border-dashed border-[#E7E0D6] bg-[#F7F5F0] text-[#8A8174]"
+                              ? "border border-dashed border-[#E7E0D6] bg-[#F7F5F0] text-[#8A8174] dark:border-[#3A342C] dark:bg-[#171717] dark:text-[#8F887B]"
                               : isMe
                                 ? "rounded-br-sm bg-[#FF5C00] text-white"
-                                : "rounded-bl-sm border border-[#E7E0D6] bg-white text-[#28231C]"
+                                : "rounded-bl-sm border border-[#E7E0D6] bg-white text-[#28231C] dark:border-[#2E2E2E] dark:bg-[#171717] dark:text-[#F6F2EA]"
                           }`}
                         >
                           {editingMessageId === message._id ? (
@@ -704,7 +705,7 @@ function SyncedRealtimeWorkspaceChat({
                                 value={editingBody}
                                 onChange={(event) => setEditingBody(event.target.value)}
                                 rows={3}
-                                className="w-full rounded-xl border border-[#DED7CC] bg-white px-3 py-2 text-sm text-[#181512] outline-none focus:border-[#FF5C00]"
+                                className="w-full rounded-xl border border-[#DED7CC] bg-white px-3 py-2 text-sm text-[#181512] outline-none focus:border-[#FF5C00] dark:border-[#3A342C] dark:bg-[#111111] dark:text-[#F6F2EA]"
                               />
                               <div className="flex justify-end gap-2">
                                 <button
@@ -712,7 +713,7 @@ function SyncedRealtimeWorkspaceChat({
                                     setEditingMessageId(null);
                                     setEditingBody("");
                                   }}
-                                  className="rounded-lg border border-[#DED7CC] px-3 py-1 text-xs font-medium text-[#5E564B] transition hover:border-[#C23B00] hover:text-[#C23B00]"
+                                  className="rounded-lg border border-[#DED7CC] px-3 py-1 text-xs font-medium text-[#5E564B] transition hover:border-[#C23B00] hover:text-[#C23B00] dark:border-[#3A342C] dark:text-[#C8C2B7]"
                                 >
                                   Cancel
                                 </button>
@@ -745,14 +746,14 @@ function SyncedRealtimeWorkspaceChat({
                                 {message.editedAt && !isDeleted ? (
                                   <span
                                     className={
-                                      isMe ? "text-white/70" : "text-[#8A8174]"
+                                      isMe ? "text-white/70" : "text-[#8A8174] dark:text-[#8F887B]"
                                     }
                                   >
                                     edited
                                   </span>
                                 ) : null}
                                 <span
-                                  className={isMe ? "text-white/70" : "text-[#8A8174]"}
+                                  className={isMe ? "text-white/70" : "text-[#8A8174] dark:text-[#8F887B]"}
                                 >
                                   {formatMessageTime(message.createdAt)}
                                 </span>
@@ -775,8 +776,8 @@ function SyncedRealtimeWorkspaceChat({
                                 disabled={pendingReactionKey === reactionKey}
                                 className={`rounded-full border px-2 py-1 text-xs transition ${
                                   reaction.reactedByMe
-                                    ? "border-[#FFB38A] bg-[#FFF1E8] text-[#C95A00]"
-                                    : "border-[#E7E0D6] bg-white text-[#5E564B] hover:border-[#FFB38A] hover:text-[#C95A00]"
+                                    ? "border-[#FFB38A] bg-[#FFF1E8] text-[#C95A00] dark:border-[#6E402A] dark:bg-[#2A1B14] dark:text-[#FFAA73]"
+                                    : "border-[#E7E0D6] bg-white text-[#5E564B] hover:border-[#FFB38A] hover:text-[#C95A00] dark:border-[#3A342C] dark:bg-[#171717] dark:text-[#C8C2B7]"
                                 } disabled:opacity-50`}
                               >
                                 <span>{reaction.emoji}</span>
@@ -794,20 +795,20 @@ function SyncedRealtimeWorkspaceChat({
           </div>
         ) : (
           <div className="flex h-full flex-col items-center justify-center text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-[#FFD5C1] bg-white">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-[#FFD5C1] bg-white dark:border-[#4B2D20] dark:bg-[#171717]">
               <FaComments className="text-2xl text-[#FF6B35]" />
             </div>
-            <p className="text-sm font-semibold text-[#181512]">
+            <p className="text-sm font-semibold text-[#181512] dark:text-[#F6F2EA]">
               No messages yet in {title}
             </p>
-            <p className="mt-1 text-xs text-[#8A8174]">
+            <p className="mt-1 text-xs text-[#8A8174] dark:text-[#8F887B]">
               Start the conversation to bring this channel to life.
             </p>
           </div>
         )}
       </div>
 
-      <div className="flex flex-shrink-0 gap-2 border-t border-[#E5E0D8] bg-white px-5 py-4">
+      <div className="flex flex-shrink-0 gap-2 border-t border-[#E5E0D8] bg-white px-5 py-4 dark:border-[#2A2A2A] dark:bg-[#111111]">
         <input
           ref={inputRef}
           type="text"
@@ -825,7 +826,7 @@ function SyncedRealtimeWorkspaceChat({
               : "Only the workspace host can post here"
           }
           disabled={!canPost || isSending || isUploading}
-          className="flex-1 rounded-xl border border-[#DED7CC] bg-[#FCFBF8] px-4 py-3 text-sm text-[#181512] outline-none transition-all placeholder:text-[#9B9287] focus:border-[#FF5C00] disabled:cursor-not-allowed disabled:bg-[#F7F5F0]"
+          className="flex-1 rounded-xl border border-[#DED7CC] bg-[#FCFBF8] px-4 py-3 text-sm text-[#181512] outline-none transition-all placeholder:text-[#9B9287] focus:border-[#FF5C00] disabled:cursor-not-allowed disabled:bg-[#F7F5F0] dark:border-[#3A342C] dark:bg-[#171717] dark:text-[#F6F2EA] dark:placeholder:text-[#7E766B] dark:disabled:bg-[#151515]"
         />
         <input
           ref={fileInputRef}
@@ -836,7 +837,7 @@ function SyncedRealtimeWorkspaceChat({
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={!canPost || isSending || isUploading}
-          className="flex items-center justify-center rounded-xl border border-[#DED7CC] bg-white px-4 text-[#5E564B] transition hover:border-[#FF5C00] hover:text-[#FF5C00] disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex items-center justify-center rounded-xl border border-[#DED7CC] bg-white px-4 text-[#5E564B] transition hover:border-[#FF5C00] hover:text-[#FF5C00] disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#3A342C] dark:bg-[#171717] dark:text-[#C8C2B7]"
           title="Attach image or file"
         >
           {isUploading ? <FaImage className="animate-pulse text-sm" /> : <FaPaperclip className="text-sm" />}
@@ -898,12 +899,12 @@ export function WorkspaceChat(props: WorkspaceChatProps) {
 
   if (props.chatPreparing) {
     return (
-      <div className="flex h-full items-center justify-center bg-[#FCFBF8] px-6 text-center">
+      <div className="flex h-full items-center justify-center bg-[#FCFBF8] px-6 text-center dark:bg-[#0D0D0D]">
         <div>
-          <p className="text-sm font-semibold text-[#181512]">
+          <p className="text-sm font-semibold text-[#181512] dark:text-[#F6F2EA]">
             Preparing realtime workspace chat...
           </p>
-          <p className="mt-2 text-sm text-[#7A7267]">
+          <p className="mt-2 text-sm text-[#7A7267] dark:text-[#A8A093]">
             Syncing your workspace access with Convex.
           </p>
         </div>

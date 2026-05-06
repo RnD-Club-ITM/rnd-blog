@@ -11,6 +11,7 @@
 import type * as lib_auth from "../lib/auth.js";
 import type * as messages from "../messages.js";
 import type * as planning from "../planning.js";
+import type * as resources from "../resources.js";
 import type * as siteAnalytics from "../siteAnalytics.js";
 import type * as workspaces from "../workspaces.js";
 
@@ -24,6 +25,7 @@ declare const fullApi: ApiFromModules<{
   "lib/auth": typeof lib_auth;
   messages: typeof messages;
   planning: typeof planning;
+  resources: typeof resources;
   siteAnalytics: typeof siteAnalytics;
   workspaces: typeof workspaces;
 }>;

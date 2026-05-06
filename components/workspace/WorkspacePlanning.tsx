@@ -58,9 +58,11 @@ function getInitials(name?: string) {
 }
 
 function getPriorityClasses(priority: PlanningTask["priority"]) {
-  if (priority === "high") return "bg-orange-100 text-orange-700";
-  if (priority === "medium") return "bg-blue-100 text-blue-700";
-  return "bg-zinc-100 text-zinc-600";
+  if (priority === "high")
+    return "bg-orange-100 text-orange-700 dark:bg-[#3A2215] dark:text-[#FFB282]";
+  if (priority === "medium")
+    return "bg-blue-100 text-blue-700 dark:bg-[#1D2D57] dark:text-[#9DC0FF]";
+  return "bg-zinc-100 text-zinc-600 dark:bg-[#2B2B2B] dark:text-[#C8C2B7]";
 }
 
 function SetupNotice({
@@ -71,20 +73,20 @@ function SetupNotice({
   reason?: string;
 }) {
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-white">
-      <div className="border-b border-[#E5E0D8] bg-white px-6 py-5">
-        <div className="flex items-center gap-3 text-sm font-semibold text-[#111]">
-          <span className="font-mono text-sm text-[#8A8174]">▦</span>
+    <div className="flex h-full flex-col overflow-hidden bg-white dark:bg-[#111111]">
+      <div className="border-b border-[#E5E0D8] bg-white px-6 py-5 dark:border-[#2A2A2A] dark:bg-[#111111]">
+        <div className="flex items-center gap-3 text-sm font-semibold text-[#111] dark:text-[#F6F2EA]">
+          <span className="font-mono text-sm text-[#8A8174] dark:text-[#8F887B]">▦</span>
           planning
         </div>
-        <p className="mt-1 text-sm text-[#7A7267]">
+        <p className="mt-1 text-sm text-[#7A7267] dark:text-[#A8A093]">
           Sprint board for the collaboration. Hosts can create their own columns and tasks here.
         </p>
       </div>
-      <div className="flex flex-1 items-center justify-center bg-[#FCFBF8] px-6 text-center">
-        <div className="max-w-md rounded-2xl border border-[#E5E0D8] bg-white p-6">
-          <p className="text-sm font-semibold text-[#181512]">{title}</p>
-          <p className="mt-2 text-sm leading-6 text-[#7A7267]">{reason}</p>
+      <div className="flex flex-1 items-center justify-center bg-[#FCFBF8] px-6 text-center dark:bg-[#0D0D0D]">
+        <div className="max-w-md rounded-2xl border border-[#E5E0D8] bg-white p-6 dark:border-[#2A2A2A] dark:bg-[#161616]">
+          <p className="text-sm font-semibold text-[#181512] dark:text-[#F6F2EA]">{title}</p>
+          <p className="mt-2 text-sm leading-6 text-[#7A7267] dark:text-[#A8A093]">{reason}</p>
         </div>
       </div>
     </div>
@@ -112,18 +114,18 @@ function ColumnEditor({
           if (event.key === "Escape") onCancel();
         }}
         autoFocus
-        className="min-w-0 flex-1 rounded-md border border-[#DED7CC] bg-[#FCFBF8] px-2 py-1 text-sm text-[#1B1814] outline-none focus:border-[#FF5C00]"
+        className="min-w-0 flex-1 rounded-md border border-[#DED7CC] bg-[#FCFBF8] px-2 py-1 text-sm text-[#1B1814] outline-none focus:border-[#FF5C00] dark:border-[#3A342C] dark:bg-[#1A1A1A] dark:text-[#F6F2EA]"
       />
       <button
         onClick={() => onSave(value)}
-        className="rounded-md border border-[#E5E0D8] p-1.5 text-[#7A7267] transition hover:border-[#FF5C00] hover:text-[#FF5C00]"
+        className="rounded-md border border-[#E5E0D8] p-1.5 text-[#7A7267] transition hover:border-[#FF5C00] hover:text-[#FF5C00] dark:border-[#3A342C] dark:text-[#A8A093]"
         aria-label="Save column title"
       >
         <FaCheck className="text-[10px]" />
       </button>
       <button
         onClick={onCancel}
-        className="rounded-md border border-[#E5E0D8] p-1.5 text-[#7A7267] transition hover:border-[#FF5C00] hover:text-[#FF5C00]"
+        className="rounded-md border border-[#E5E0D8] p-1.5 text-[#7A7267] transition hover:border-[#FF5C00] hover:text-[#FF5C00] dark:border-[#3A342C] dark:text-[#A8A093]"
         aria-label="Cancel column edit"
       >
         <FaXmark className="text-[10px]" />
@@ -260,28 +262,28 @@ export function WorkspacePlanning({
   };
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-[#FCFBF8]">
-      <div className="border-b border-[#E5E0D8] bg-white px-6 py-5">
+    <div className="flex h-full flex-col overflow-hidden bg-[#FCFBF8] dark:bg-[#0D0D0D]">
+      <div className="border-b border-[#E5E0D8] bg-white px-6 py-5 dark:border-[#2A2A2A] dark:bg-[#111111]">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="flex items-center gap-3 text-sm font-semibold text-[#111]">
-              <span className="font-mono text-sm text-[#8A8174]">▦</span>
+            <div className="flex items-center gap-3 text-sm font-semibold text-[#111] dark:text-[#F6F2EA]">
+              <span className="font-mono text-sm text-[#8A8174] dark:text-[#8F887B]">▦</span>
               planning
             </div>
-            <p className="mt-1 text-sm text-[#7A7267]">
+            <p className="mt-1 text-sm text-[#7A7267] dark:text-[#A8A093]">
               Hosts can create custom boards, then add tasks directly inside each board.
             </p>
             <div className="mt-3 flex flex-wrap gap-2 text-xs">
-              <span className="rounded-full bg-[#F3EFE7] px-3 py-1 font-medium text-[#5D564B]">
+              <span className="rounded-full bg-[#F3EFE7] px-3 py-1 font-medium text-[#5D564B] dark:bg-[#2B2B2B] dark:text-[#D5CDC1]">
                 {memberCount} joined
               </span>
-              <span className="rounded-full bg-[#E9F7EE] px-3 py-1 font-medium text-[#1D7A46]">
+              <span className="rounded-full bg-[#E9F7EE] px-3 py-1 font-medium text-[#1D7A46] dark:bg-[#173222] dark:text-[#91D5A9]">
                 {completedMembersCount} members done work
               </span>
-              <span className="rounded-full bg-[#FFF1E8] px-3 py-1 font-medium text-[#D94E00]">
+              <span className="rounded-full bg-[#FFF1E8] px-3 py-1 font-medium text-[#D94E00] dark:bg-[#392218] dark:text-[#FFAA73]">
                 {completedTasks} tasks touched
               </span>
-              <span className="rounded-full bg-[#EEF3FF] px-3 py-1 font-medium text-[#3554C5]">
+              <span className="rounded-full bg-[#EEF3FF] px-3 py-1 font-medium text-[#3554C5] dark:bg-[#1A284F] dark:text-[#9CB4FF]">
                 {activeTasks} untouched
               </span>
             </div>
@@ -293,7 +295,7 @@ export function WorkspacePlanning({
                 onChange={(event) => setNewColumnTitle(event.target.value)}
                 onKeyDown={(event) => event.key === "Enter" && handleCreateColumn()}
                 placeholder="Create a new board"
-                className="w-full rounded-lg border border-[#DED7CC] bg-[#FCFBF8] px-3 py-2 text-sm text-[#1B1814] outline-none placeholder:text-[#9B9287] focus:border-[#FF5C00] lg:w-64"
+                className="w-full rounded-lg border border-[#DED7CC] bg-[#FCFBF8] px-3 py-2 text-sm text-[#1B1814] outline-none placeholder:text-[#9B9287] focus:border-[#FF5C00] dark:border-[#3A342C] dark:bg-[#1A1A1A] dark:text-[#F6F2EA] dark:placeholder:text-[#7E766B] lg:w-64"
               />
               <button
                 onClick={handleCreateColumn}
@@ -313,9 +315,9 @@ export function WorkspacePlanning({
             {columns.map((column, index) => (
               <div
                 key={column._id}
-                className="flex w-[300px] flex-col rounded-2xl border border-[#E5E0D8] bg-white"
+                className="flex w-[300px] flex-col rounded-2xl border border-[#E5E0D8] bg-white dark:border-[#2A2A2A] dark:bg-[#141414]"
               >
-                <div className="space-y-3 border-b border-[#EFE9DE] px-4 py-4">
+                <div className="space-y-3 border-b border-[#EFE9DE] px-4 py-4 dark:border-[#232323]">
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       {editingColumnId === column._id && canEdit ? (
@@ -326,13 +328,13 @@ export function WorkspacePlanning({
                         />
                       ) : (
                         <div className="flex items-center gap-2">
-                          <h3 className="truncate text-sm font-semibold text-[#1B1814]">
+                          <h3 className="truncate text-sm font-semibold text-[#1B1814] dark:text-[#F6F2EA]">
                             {column.title}
                           </h3>
                           {canEdit ? (
                             <button
                               onClick={() => setEditingColumnId(column._id)}
-                              className="rounded-md border border-[#E5E0D8] p-1.5 text-[#7A7267] transition hover:border-[#FF5C00] hover:text-[#FF5C00]"
+                              className="rounded-md border border-[#E5E0D8] p-1.5 text-[#7A7267] transition hover:border-[#FF5C00] hover:text-[#FF5C00] dark:border-[#3A342C] dark:text-[#A8A093]"
                               aria-label="Rename board"
                             >
                               <FaPen className="text-[10px]" />
@@ -342,13 +344,13 @@ export function WorkspacePlanning({
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="rounded-full bg-[#F3EFE7] px-2.5 py-0.5 font-mono text-xs text-[#6E665A]">
+                      <span className="rounded-full bg-[#F3EFE7] px-2.5 py-0.5 font-mono text-xs text-[#6E665A] dark:bg-[#2B2B2B] dark:text-[#D5CDC1]">
                         {column.tasks.length}
                       </span>
                       {canEdit ? (
                         <button
                           onClick={() => handleDeleteColumn(column._id)}
-                          className="rounded-md border border-[#E5E0D8] p-1.5 text-[#7A7267] transition hover:border-[#FF5C00] hover:text-[#FF5C00]"
+                          className="rounded-md border border-[#E5E0D8] p-1.5 text-[#7A7267] transition hover:border-[#FF5C00] hover:text-[#FF5C00] dark:border-[#3A342C] dark:text-[#A8A093]"
                           aria-label="Delete board"
                         >
                           <FaTrash className="text-[10px]" />
@@ -371,7 +373,7 @@ export function WorkspacePlanning({
                           event.key === "Enter" && handleCreateTask(column._id)
                         }
                         placeholder={`Add task in ${column.title}`}
-                        className="min-w-0 flex-1 rounded-lg border border-[#DED7CC] bg-[#FCFBF8] px-3 py-2 text-sm text-[#1B1814] outline-none placeholder:text-[#9B9287] focus:border-[#FF5C00]"
+                        className="min-w-0 flex-1 rounded-lg border border-[#DED7CC] bg-[#FCFBF8] px-3 py-2 text-sm text-[#1B1814] outline-none placeholder:text-[#9B9287] focus:border-[#FF5C00] dark:border-[#3A342C] dark:bg-[#1A1A1A] dark:text-[#F6F2EA] dark:placeholder:text-[#7E766B]"
                       />
                       <button
                         onClick={() => handleCreateTask(column._id)}
@@ -390,8 +392,8 @@ export function WorkspacePlanning({
                       key={task._id}
                       className={`flex min-h-[196px] flex-col rounded-xl border p-4 shadow-[0_10px_24px_rgba(17,17,17,0.04)] ${
                         task.completedByCurrentUser
-                          ? "border-[#D6EBDC] bg-[#F7FCF8]"
-                          : "border-[#ECE5DB] bg-[#FFFEFC]"
+                          ? "border-[#D6EBDC] bg-[#F7FCF8] dark:border-[#20402D] dark:bg-[#122017]"
+                          : "border-[#ECE5DB] bg-[#FFFEFC] dark:border-[#2F2F2F] dark:bg-[#111111]"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -401,7 +403,7 @@ export function WorkspacePlanning({
                             className={`inline-flex h-7 w-7 items-center justify-center rounded-full border transition ${
                               task.completedByCurrentUser
                                 ? "border-[#1D7A46] bg-[#1D7A46] text-white"
-                                : "border-[#D9D2C7] bg-white text-[#8A8174] hover:border-[#1D7A46] hover:text-[#1D7A46]"
+                                : "border-[#D9D2C7] bg-white text-[#8A8174] hover:border-[#1D7A46] hover:text-[#1D7A46] dark:border-[#4C443A] dark:bg-[#191919] dark:text-[#B0A89B]"
                             }`}
                             aria-label={
                               task.completedByCurrentUser
@@ -415,7 +417,7 @@ export function WorkspacePlanning({
                             className={`rounded-md px-2 py-1 font-mono text-[10px] uppercase tracking-[0.14em] ${
                               task.completedByCurrentUser
                                 ? "bg-[#E9F7EE] text-[#1D7A46]"
-                                : "bg-stone-100 text-stone-700"
+                                : "bg-stone-100 text-stone-700 dark:bg-[#2B2B2B] dark:text-[#D5CDC1]"
                             }`}
                           >
                             {task.completedByCurrentUser ? "Done by you" : "Task"}
@@ -431,29 +433,29 @@ export function WorkspacePlanning({
                         <p
                           className={`text-sm font-medium leading-6 whitespace-pre-wrap break-words ${
                           task.completedByCurrentUser
-                            ? "text-[#61715F] line-through"
-                            : "text-[#28231C]"
+                            ? "text-[#61715F] line-through dark:text-[#7E9A85]"
+                            : "text-[#28231C] dark:text-[#F6F2EA]"
                         }`}
                         >
                           {task.title}
                         </p>
                       </div>
                       <div className="mt-4 flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-xs text-[#7A7267]">
+                        <div className="flex items-center gap-2 text-xs text-[#7A7267] dark:text-[#A8A093]">
                           <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-orange-700 text-[10px] font-semibold text-white">
                             {getInitials(task.assigneeName)}
                           </div>
                           <div className="flex flex-col">
                             <span>{task.assigneeName || "Unassigned"}</span>
                             {task.completionCount > 0 ? (
-                              <span className="text-[10px] text-[#1D7A46]">
+                              <span className="text-[10px] text-[#1D7A46] dark:text-[#91D5A9]">
                                 {task.completionCount} member(s) completed
                               </span>
                             ) : null}
                           </div>
                         </div>
                         {canEdit && task.completedByNames.length ? (
-                          <div className="max-w-[120px] truncate text-right text-[10px] text-[#1D7A46]">
+                          <div className="max-w-[120px] truncate text-right text-[10px] text-[#1D7A46] dark:text-[#91D5A9]">
                             {task.completedByNames.join(", ")}
                           </div>
                         ) : null}
@@ -461,7 +463,7 @@ export function WorkspacePlanning({
                           <div className="flex items-center gap-1">
                             <button
                               onClick={() => handleDeleteTask(task._id)}
-                              className="rounded-md border border-[#E5E0D8] p-1.5 text-[#7A7267] transition hover:border-[#FF5C00] hover:text-[#FF5C00]"
+                              className="rounded-md border border-[#E5E0D8] p-1.5 text-[#7A7267] transition hover:border-[#FF5C00] hover:text-[#FF5C00] dark:border-[#3A342C] dark:text-[#A8A093]"
                               aria-label="Delete task"
                             >
                               <FaTrash className="text-[10px]" />
@@ -469,7 +471,7 @@ export function WorkspacePlanning({
                             <button
                               onClick={() => handleMoveTask(task._id, "left")}
                               disabled={index === 0}
-                              className="rounded-md border border-[#E5E0D8] p-1.5 text-[#7A7267] transition hover:border-[#FF5C00] hover:text-[#FF5C00] disabled:cursor-not-allowed disabled:opacity-40"
+                              className="rounded-md border border-[#E5E0D8] p-1.5 text-[#7A7267] transition hover:border-[#FF5C00] hover:text-[#FF5C00] disabled:cursor-not-allowed disabled:opacity-40 dark:border-[#3A342C] dark:text-[#A8A093]"
                               aria-label="Move task left"
                             >
                               <FaArrowLeft className="text-[10px]" />
@@ -477,7 +479,7 @@ export function WorkspacePlanning({
                             <button
                               onClick={() => handleMoveTask(task._id, "right")}
                               disabled={index === columns.length - 1}
-                              className="rounded-md border border-[#E5E0D8] p-1.5 text-[#7A7267] transition hover:border-[#FF5C00] hover:text-[#FF5C00] disabled:cursor-not-allowed disabled:opacity-40"
+                              className="rounded-md border border-[#E5E0D8] p-1.5 text-[#7A7267] transition hover:border-[#FF5C00] hover:text-[#FF5C00] disabled:cursor-not-allowed disabled:opacity-40 dark:border-[#3A342C] dark:text-[#A8A093]"
                               aria-label="Move task right"
                             >
                               <FaArrowRight className="text-[10px]" />
@@ -489,7 +491,7 @@ export function WorkspacePlanning({
                   ))}
 
                   {!column.tasks.length ? (
-                    <div className="flex min-h-32 items-center justify-center rounded-xl border border-dashed border-[#E5E0D8] bg-[#FCFBF8] p-4 text-center text-sm text-[#948B80]">
+                    <div className="flex min-h-32 items-center justify-center rounded-xl border border-dashed border-[#E5E0D8] bg-[#FCFBF8] p-4 text-center text-sm text-[#948B80] dark:border-[#323232] dark:bg-[#181818] dark:text-[#8F887B]">
                       No tasks here yet.
                     </div>
                   ) : null}
@@ -498,11 +500,11 @@ export function WorkspacePlanning({
             ))}
           </div>
         ) : (
-          <div className="rounded-2xl border border-dashed border-[#E5E0D8] bg-white p-8 text-center">
-            <p className="text-sm font-semibold text-[#181512]">
+          <div className="rounded-2xl border border-dashed border-[#E5E0D8] bg-white p-8 text-center dark:border-[#323232] dark:bg-[#141414]">
+            <p className="text-sm font-semibold text-[#181512] dark:text-[#F6F2EA]">
               No boards created yet.
             </p>
-            <p className="mt-2 text-sm leading-6 text-[#7A7267]">
+            <p className="mt-2 text-sm leading-6 text-[#7A7267] dark:text-[#A8A093]">
               {canEdit
                 ? "Create the first board for this workspace, then add tasks directly inside it."
                 : "The host has not created any planning boards yet."}
@@ -511,7 +513,7 @@ export function WorkspacePlanning({
         )}
 
         {columns.length ? (
-          <div className="mt-6 rounded-2xl border border-[#E5E0D8] bg-white p-4 text-sm text-[#7A7267]">
+          <div className="mt-6 rounded-2xl border border-[#E5E0D8] bg-white p-4 text-sm text-[#7A7267] dark:border-[#2A2A2A] dark:bg-[#141414] dark:text-[#A8A093]">
             {totalTasks} task(s) across {columns.length} board(s).
           </div>
         ) : null}

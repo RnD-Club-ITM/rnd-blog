@@ -12,6 +12,15 @@ export async function POST(req: NextRequest) {
 
         const { projectName, description, skillsNeeded, duration, commitment, maxPositions } = await req.json()
 
+        if (!projectName?.trim() || !description?.trim()) {
+            return NextResponse.json({ error: 'Project name and description are required' }, { status: 400 })
+        }
+
+        const normalizedMaxPositions =
+            typeof maxPositions === 'number' && Number.isFinite(maxPositions) && maxPositions > 0
+                ? maxPositions
+                : undefined
+
         // 1. Ensure the current Clerk user is linked to a Sanity user
         const sanityUser = await getOrCreateUser()
         const sanityUserId = sanityUser?._id
@@ -23,12 +32,12 @@ export async function POST(req: NextRequest) {
         // 2. Create Collaboration Document
         const result = await client.create({
             _type: 'collaboration',
-            projectName,
-            description,
+            projectName: projectName.trim(),
+            description: description.trim(),
             skillsNeeded: skillsNeeded ? skillsNeeded.split(',').map((s: string) => s.trim()) : [],
-            duration,
-            commitment,
-            maxPositions: maxPositions || 3,
+            duration: duration?.trim() || undefined,
+            commitment: commitment?.trim() || undefined,
+            maxPositions: normalizedMaxPositions,
             status: 'open',
             postedBy: {
                 _type: 'reference',

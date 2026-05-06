@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { format } from "date-fns";
 import { getImageUrl } from "@/lib/sanity/client";
@@ -41,11 +41,13 @@ type ViewKey =
   | "canvas";
 
 interface WorkspaceResource {
-  id: string;
+  _id: string;
   title: string;
   url: string;
   type: string;
   description: string;
+  createdBy?: string;
+  createdByName?: string;
 }
 
 interface WorkspaceMember {
@@ -114,6 +116,7 @@ interface QuickLink {
 interface ChatContext {
   convexConfigured: boolean;
   currentUserRole: "host" | "member";
+  currentUserClerkId: string;
   memberName: string;
   memberAvatarUrl?: string;
 }
@@ -181,17 +184,6 @@ function formatWorkspaceDate(value?: string) {
   } catch {
     return "Recently";
   }
-}
-
-function seedResources(): WorkspaceResource[] {
-  return [];
-}
-
-const LEGACY_RESOURCE_IDS = new Set(["repo", "doc", "scope"]);
-
-function sanitizeStoredResources(resources: WorkspaceResource[] | undefined) {
-  if (!resources?.length) return [];
-  return resources.filter((resource) => !LEGACY_RESOURCE_IDS.has(resource.id));
 }
 
 function MemberAvatar({
@@ -360,6 +352,10 @@ export function WorkspaceLayout({
   const [activeView, setActiveView] = useState<ViewKey>("announcements");
   const [newResourceTitle, setNewResourceTitle] = useState("");
   const [newResourceUrl, setNewResourceUrl] = useState("");
+  const [isAddingResource, setIsAddingResource] = useState(false);
+  const [pendingResourceDeleteId, setPendingResourceDeleteId] = useState<string | null>(
+    null,
+  );
   const [isUpdatingApplicant, setIsUpdatingApplicant] = useState<string | null>(
     null,
   );
@@ -391,31 +387,13 @@ export function WorkspaceLayout({
 
   const allMembers = Array.from(uniqueMembers.values());
   const memberCount = allMembers.length;
-  const maxPositions = collaboration.maxPositions || 3;
-  const occupancy = Math.min(
-    100,
-    Math.round((memberCount / Math.max(maxPositions + 1, 1)) * 100),
-  );
+  const hasSeatLimit = typeof collaboration.maxPositions === "number";
+  const maxPositions = collaboration.maxPositions;
+  const plannedSeats = hasSeatLimit ? (maxPositions as number) + 1 : undefined;
+  const occupancy = plannedSeats
+    ? Math.min(100, Math.round((memberCount / Math.max(plannedSeats, 1)) * 100))
+    : 100;
 
-  const storageKey = `spark-workspace-${collaboration._id}`;
-  const seededResources = useMemo(() => seedResources(), []);
-  const [resources, setResources] = useState<WorkspaceResource[]>(() => {
-    if (typeof window === "undefined") return seededResources;
-    try {
-      const stored = window.localStorage.getItem(storageKey);
-      if (!stored) return seededResources;
-      const parsed = JSON.parse(stored) as { resources?: WorkspaceResource[] };
-      const cleaned = sanitizeStoredResources(parsed.resources);
-      return cleaned.length ? cleaned : seededResources;
-    } catch {
-      return seededResources;
-    }
-  });
- 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(storageKey, JSON.stringify({ resources }));
-  }, [resources, storageKey]);
   const quickLinks: QuickLink[] = [
     ...(collaboration.githubRepo
       ? [
@@ -449,29 +427,43 @@ export function WorkspaceLayout({
     },
   ];
 
-  const addResource = () => {
+  const addResource = async () => {
     const title = newResourceTitle.trim();
     const url = newResourceUrl.trim();
     if (!title || !url) return;
 
-    setResources((current) => [
-      ...current,
-      {
-        id: crypto.randomUUID(),
+    setIsAddingResource(true);
+    try {
+      await createResource({
+        workspaceId: collaboration._id,
         title,
         url,
         type: "Link",
-        description: "Added by the team to support current collaboration work.",
-      },
-    ]);
-    setNewResourceTitle("");
-    setNewResourceUrl("");
+        description: "Shared with the workspace.",
+      });
+      setNewResourceTitle("");
+      setNewResourceUrl("");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to add resource");
+    } finally {
+      setIsAddingResource(false);
+    }
   };
 
-  const deleteResource = (resourceId: string) => {
-    setResources((current) =>
-      current.filter((resource) => resource.id !== resourceId),
-    );
+  const deleteResource = async (resourceId: string) => {
+    setPendingResourceDeleteId(resourceId);
+    try {
+      await deleteResourceMutation({
+        workspaceId: collaboration._id,
+        resourceId: resourceId as never,
+      });
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete resource",
+      );
+    } finally {
+      setPendingResourceDeleteId(null);
+    }
   };
 
   const updateApplicantStatus = async (
@@ -578,6 +570,12 @@ export function WorkspaceLayout({
   const chatPreparing =
     chatContext.convexConfigured &&
     (chatAuthLoading || (isAuthenticated && chatSyncStatus === "idle"));
+  const resources = useQuery(
+    api.resources.list,
+    chatReady ? { workspaceId: collaboration._id } : "skip",
+  ) as WorkspaceResource[] | undefined;
+  const createResource = useMutation(api.resources.create);
+  const deleteResourceMutation = useMutation(api.resources.remove);
   const planningBoard = useQuery(
     api.planning.board,
     chatReady ? { workspaceId: collaboration._id } : "skip",
@@ -608,25 +606,25 @@ export function WorkspaceLayout({
   const renderView = () => {
     if (activeView === "announcements") {
       return (
-        <div className="flex h-full flex-col overflow-y-auto bg-[#FCFBF8]">
-          <div className="border-b border-[#E5E0D8] bg-white px-6 py-5">
-            <div className="flex items-center gap-3 text-sm font-semibold text-[#111]">
-              <FaHashtag className="text-xs text-[#8A8174]" />
+        <div className="flex h-full flex-col overflow-y-auto bg-[#FCFBF8] dark:bg-[#0D0D0D]">
+          <div className="border-b border-[#E5E0D8] bg-white px-6 py-5 dark:border-[#2A2A2A] dark:bg-[#111111]">
+            <div className="flex items-center gap-3 text-sm font-semibold text-[#111] dark:text-[#F6F2EA]">
+              <FaHashtag className="text-xs text-[#8A8174] dark:text-[#8F887B]" />
               announcements
             </div>
-            <p className="mt-1 text-sm text-[#7A7267]">
+            <p className="mt-1 text-sm text-[#7A7267] dark:text-[#A8A093]">
               Project brief and host updates. This is the home base for the workspace.
             </p>
           </div>
 
           <div className="px-6 py-5">
             <div className="mb-4 flex justify-center">
-              <span className="rounded-full border border-[#E5E0D8] bg-white px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-[#8A8174]">
+              <span className="rounded-full border border-[#E5E0D8] bg-white px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-[#8A8174] dark:border-[#2E2E2E] dark:bg-[#161616] dark:text-[#8F887B]">
                 {formatWorkspaceDate(collaboration._createdAt)}
               </span>
             </div>
 
-            <div className="overflow-hidden rounded-2xl border border-[#E5E0D8] bg-white shadow-[0_12px_40px_rgba(17,17,17,0.05)]">
+            <div className="overflow-hidden rounded-2xl border border-[#E5E0D8] bg-white shadow-[0_12px_40px_rgba(17,17,17,0.05)] dark:border-[#2A2A2A] dark:bg-[#141414] dark:shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
               <div className="bg-[#111111] px-6 py-6 text-white">
                 <div className="text-[11px] uppercase tracking-[0.2em] text-[#FF8E56]">
                   Project Brief
@@ -645,19 +643,19 @@ export function WorkspaceLayout({
 
               <div className="space-y-6 px-6 py-6">
                 <section>
-                  <h3 className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174]">
+                  <h3 className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174] dark:text-[#8F887B]">
                     Problem Statement
                   </h3>
-                  <p className="mt-2 text-[15px] leading-7 text-[#4E473E]">
+                  <p className="mt-2 text-[15px] leading-7 text-[#4E473E] dark:text-[#C8C2B7]">
                     {collaboration.description}
                   </p>
                 </section>
 
                 <section>
-                  <h3 className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174]">
+                  <h3 className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174] dark:text-[#8F887B]">
                     What This Team Needs
                   </h3>
-                  <p className="mt-2 text-[15px] leading-7 text-[#4E473E]">
+                  <p className="mt-2 text-[15px] leading-7 text-[#4E473E] dark:text-[#C8C2B7]">
                     {collaboration.skillsNeeded?.length
                       ? `Looking for collaborators across ${collaboration.skillsNeeded.join(", ")}.`
                       : "Looking for collaborators who can help move the project from idea to execution."}{" "}
@@ -668,20 +666,20 @@ export function WorkspaceLayout({
                 </section>
 
                 <section>
-                  <h3 className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174]">
+                  <h3 className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174] dark:text-[#8F887B]">
                     Stack And Workstreams
                   </h3>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {(collaboration.skillsNeeded || []).map((skill: string) => (
                       <span
                         key={skill}
-                        className="rounded-md bg-[#FFF1E8] px-3 py-1.5 font-mono text-xs font-medium text-[#D94E00]"
+                        className="rounded-md bg-[#FFF1E8] px-3 py-1.5 font-mono text-xs font-medium text-[#D94E00] dark:bg-[#2A1B14] dark:text-[#FFAA73]"
                       >
                         {skill}
                       </span>
                     ))}
                     {!collaboration.skillsNeeded?.length && (
-                      <span className="rounded-md bg-[#F3F0EA] px-3 py-1.5 font-mono text-xs text-[#6F675B]">
+                      <span className="rounded-md bg-[#F3F0EA] px-3 py-1.5 font-mono text-xs text-[#6F675B] dark:bg-[#2B2B2B] dark:text-[#D5CDC1]">
                         General collaboration
                       </span>
                     )}
@@ -689,19 +687,19 @@ export function WorkspaceLayout({
                 </section>
 
                 <section className="grid gap-3 md:grid-cols-2">
-                  <div className="rounded-xl border border-[#E8E2D9] bg-[#FCFBF8] p-4">
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-[#8A8174]">
+                  <div className="rounded-xl border border-[#E8E2D9] bg-[#FCFBF8] p-4 dark:border-[#2A2A2A] dark:bg-[#191919]">
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-[#8A8174] dark:text-[#8F887B]">
                       Duration
                     </div>
-                    <div className="mt-2 text-sm font-semibold text-[#1B1814]">
+                    <div className="mt-2 text-sm font-semibold text-[#1B1814] dark:text-[#F6F2EA]">
                       {collaboration.duration || "Flexible"}
                     </div>
                   </div>
-                  <div className="rounded-xl border border-[#E8E2D9] bg-[#FCFBF8] p-4">
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-[#8A8174]">
+                  <div className="rounded-xl border border-[#E8E2D9] bg-[#FCFBF8] p-4 dark:border-[#2A2A2A] dark:bg-[#191919]">
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-[#8A8174] dark:text-[#8F887B]">
                       Current Progress
                     </div>
-                    <div className="mt-2 text-sm font-semibold text-[#1B1814]">
+                    <div className="mt-2 text-sm font-semibold text-[#1B1814] dark:text-[#F6F2EA]">
                       {completedMembersCount} member(s) have completed work,{" "}
                       {completedPlanningTasks} task(s) touched
                     </div>
@@ -710,29 +708,29 @@ export function WorkspaceLayout({
               </div>
             </div>
 
-            <div className="mt-5 rounded-2xl border border-[#E5E0D8] bg-white p-5">
+            <div className="mt-5 rounded-2xl border border-[#E5E0D8] bg-white p-5 dark:border-[#2A2A2A] dark:bg-[#141414]">
               <div className="flex items-center gap-3">
                 <MemberAvatar member={collaboration.postedBy} size={36} />
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="truncate text-sm font-semibold text-[#181512]">
+                    <p className="truncate text-sm font-semibold text-[#181512] dark:text-[#F6F2EA]">
                       {collaboration.postedBy?.name || "Project lead"}
                     </p>
-                    <span className="rounded bg-[#FFF1E8] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#D94E00]">
+                    <span className="rounded bg-[#FFF1E8] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#D94E00] dark:bg-[#2A1B14] dark:text-[#FFAA73]">
                       Host
                     </span>
                   </div>
-                  <p className="text-xs text-[#8A8174]">
+                  <p className="text-xs text-[#8A8174] dark:text-[#8F887B]">
                     Last updated this workspace and aligned the next sprint.
                   </p>
                 </div>
-                <span className="ml-auto text-[11px] font-mono text-[#8A8174]">
+                <span className="ml-auto text-[11px] font-mono text-[#8A8174] dark:text-[#8F887B]">
                   {formatWorkspaceDate(collaboration._createdAt)}
                 </span>
               </div>
             </div>
 
-            <div className="mt-5 h-[540px] overflow-hidden rounded-2xl border border-[#E5E0D8] bg-white">
+            <div className="mt-5 h-[540px] overflow-hidden rounded-2xl border border-[#E5E0D8] bg-white dark:border-[#2A2A2A] dark:bg-[#141414]">
               <WorkspaceChat
                 workspaceId={collaboration._id}
                 channelSlug="announcements"
@@ -804,15 +802,15 @@ export function WorkspaceLayout({
 
     if (activeView === "resources") {
       return (
-        <div className="flex h-full flex-col overflow-y-auto bg-[#FCFBF8]">
-          <div className="border-b border-[#E5E0D8] bg-white px-6 py-5">
+        <div className="flex h-full flex-col overflow-y-auto bg-[#FCFBF8] dark:bg-[#0D0D0D]">
+          <div className="border-b border-[#E5E0D8] bg-white px-6 py-5 dark:border-[#2A2A2A] dark:bg-[#111111]">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <div className="flex items-center gap-3 text-sm font-semibold text-[#111]">
-                  <span className="font-mono text-sm text-[#8A8174]">◈</span>
+                <div className="flex items-center gap-3 text-sm font-semibold text-[#111] dark:text-[#F6F2EA]">
+                  <span className="font-mono text-sm text-[#8A8174] dark:text-[#8F887B]">◈</span>
                   resources
                 </div>
-                <p className="mt-1 text-sm text-[#7A7267]">
+                <p className="mt-1 text-sm text-[#7A7267] dark:text-[#A8A093]">
                   Papers, repos, docs, and references your team can keep in one place.
                 </p>
               </div>
@@ -821,68 +819,87 @@ export function WorkspaceLayout({
                   value={newResourceTitle}
                   onChange={(event) => setNewResourceTitle(event.target.value)}
                   placeholder="Resource title"
-                  className="rounded-lg border border-[#DED7CC] bg-[#FCFBF8] px-3 py-2 text-sm outline-none placeholder:text-[#9B9287] focus:border-[#FF5C00]"
+                  className="rounded-lg border border-[#DED7CC] bg-[#FCFBF8] px-3 py-2 text-sm outline-none placeholder:text-[#9B9287] focus:border-[#FF5C00] dark:border-[#3A342C] dark:bg-[#171717] dark:text-[#F6F2EA] dark:placeholder:text-[#7E766B]"
                 />
                 <input
                   value={newResourceUrl}
                   onChange={(event) => setNewResourceUrl(event.target.value)}
-                  onKeyDown={(event) => event.key === "Enter" && addResource()}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void addResource();
+                    }
+                  }}
                   placeholder="https://..."
-                  className="rounded-lg border border-[#DED7CC] bg-[#FCFBF8] px-3 py-2 text-sm outline-none placeholder:text-[#9B9287] focus:border-[#FF5C00]"
+                  className="rounded-lg border border-[#DED7CC] bg-[#FCFBF8] px-3 py-2 text-sm outline-none placeholder:text-[#9B9287] focus:border-[#FF5C00] dark:border-[#3A342C] dark:bg-[#171717] dark:text-[#F6F2EA] dark:placeholder:text-[#7E766B]"
                 />
                 <button
-                  onClick={addResource}
+                  onClick={() => void addResource()}
+                  disabled={isAddingResource}
                   className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#FF5C00] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#E65400]"
                 >
                   <FaPlus className="text-xs" />
-                  Add
+                  {isAddingResource ? "Adding..." : "Add"}
                 </button>
               </div>
             </div>
           </div>
 
           <div className="grid gap-4 px-6 py-6 md:grid-cols-2 xl:grid-cols-3">
-            {resources.map((resource) => (
-              <div
-                key={resource.id}
-                className="rounded-2xl border border-[#E5E0D8] bg-white p-5 transition hover:-translate-y-0.5 hover:border-[#FF5C00]"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174]">
-                    {resource.type}
-                  </div>
-                  <button
-                    onClick={() => deleteResource(resource.id)}
-                    className="rounded-md border border-[#E5E0D8] p-1.5 text-[#7A7267] transition hover:border-[#FF5C00] hover:text-[#FF5C00]"
-                    aria-label="Delete resource"
-                  >
-                    <FaTrash className="text-[10px]" />
-                  </button>
-                </div>
-                <a
-                  href={resource.url}
-                  target={resource.url.startsWith("http") ? "_blank" : undefined}
-                  rel={
-                    resource.url.startsWith("http")
-                      ? "noopener noreferrer"
-                      : undefined
-                  }
-                  className="block"
+            {(resources || []).map((resource) => {
+              const canDeleteResource =
+                chatContext.currentUserRole === "host" ||
+                resource.createdBy === chatContext.currentUserClerkId;
+              return (
+                <div
+                  key={resource._id}
+                  className="rounded-2xl border border-[#E5E0D8] bg-white p-5 transition hover:-translate-y-0.5 hover:border-[#FF5C00] dark:border-[#2A2A2A] dark:bg-[#141414]"
                 >
-                  <h3 className="mt-2 text-base font-semibold leading-6 text-[#1B1814]">
-                    {resource.title}
-                  </h3>
-                  <p className="mt-2 truncate font-mono text-xs text-[#3146D7]">
-                    {resource.url}
-                  </p>
-                  <p className="mt-3 text-sm leading-6 text-[#5E564B]">
-                    {resource.description}
-                  </p>
-                </a>
-              </div>
-            ))}
-            {!resources.length && (
-              <div className="rounded-2xl border border-dashed border-[#E5E0D8] bg-white p-6 text-sm text-[#7A7267]">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174] dark:text-[#8F887B]">
+                      {resource.type}
+                    </div>
+                    {canDeleteResource ? (
+                      <button
+                        onClick={() => void deleteResource(resource._id)}
+                        disabled={pendingResourceDeleteId === resource._id}
+                        className="rounded-md border border-[#E5E0D8] p-1.5 text-[#7A7267] transition hover:border-[#FF5C00] hover:text-[#FF5C00] disabled:opacity-50 dark:border-[#3A342C] dark:text-[#A8A093]"
+                        aria-label="Delete resource"
+                      >
+                        <FaTrash className="text-[10px]" />
+                      </button>
+                    ) : null}
+                  </div>
+                  <a
+                    href={resource.url}
+                    target={resource.url.startsWith("http") ? "_blank" : undefined}
+                    rel={
+                      resource.url.startsWith("http")
+                        ? "noopener noreferrer"
+                        : undefined
+                    }
+                    className="block"
+                  >
+                    <h3 className="mt-2 text-base font-semibold leading-6 text-[#1B1814] dark:text-[#F6F2EA]">
+                      {resource.title}
+                    </h3>
+                    <p className="mt-2 truncate font-mono text-xs text-[#3146D7] dark:text-[#93A9FF]">
+                      {resource.url}
+                    </p>
+                    <p className="mt-3 text-sm leading-6 text-[#5E564B] dark:text-[#C8C2B7]">
+                      {resource.description}
+                    </p>
+                    {resource.createdByName ? (
+                      <p className="mt-3 text-xs text-[#8A8174] dark:text-[#8F887B]">
+                        Added by {resource.createdByName}
+                      </p>
+                    ) : null}
+                  </a>
+                </div>
+              );
+            })}
+            {!(resources || []).length && (
+              <div className="rounded-2xl border border-dashed border-[#E5E0D8] bg-white p-6 text-sm text-[#7A7267] dark:border-[#323232] dark:bg-[#141414] dark:text-[#A8A093]">
                 No shared resources yet. Add your first repo, doc, paper, or reference link here.
               </div>
             )}
@@ -895,8 +912,8 @@ export function WorkspaceLayout({
   };
 
   return (
-    <div className="flex h-full flex-col bg-[#F7F5F0] text-[#111111]">
-      <div className="border-b border-[#E4DED5] bg-white px-4 py-3 md:px-6">
+    <div className="flex h-full flex-col bg-[#F7F5F0] text-[#111111] dark:bg-[#0B0B0B] dark:text-[#F6F2EA]">
+      <div className="border-b border-[#E4DED5] bg-white px-4 py-3 dark:border-[#242424] dark:bg-[#111111] md:px-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex min-w-0 items-start gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#FF5C00] font-black text-white">
@@ -913,11 +930,13 @@ export function WorkspaceLayout({
                   {status.label}
                 </span>
               </div>
-              <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[#7A7267]">
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[#7A7267] dark:text-[#A8A093]">
                 <span>Host: {collaboration.postedBy?.name || "Unknown"}</span>
                 <span>•</span>
                 <span>
-                  {memberCount} / {maxPositions + 1} members
+                  {plannedSeats
+                    ? `${memberCount} / ${plannedSeats} members`
+                    : `${memberCount} member(s) joined`}
                 </span>
                 <span>•</span>
                 <span>{completedMembersCount} member(s) completed work</span>
@@ -926,7 +945,7 @@ export function WorkspaceLayout({
                 {(collaboration.skillsNeeded || []).slice(0, 4).map((skill: string) => (
                   <span
                     key={skill}
-                    className="rounded-md bg-[#F3F0EA] px-2.5 py-1 font-mono text-[11px] text-[#5F584E]"
+                    className="rounded-md bg-[#F3F0EA] px-2.5 py-1 font-mono text-[11px] text-[#5F584E] dark:bg-[#2B2B2B] dark:text-[#D5CDC1]"
                   >
                     {skill}
                   </span>
@@ -948,7 +967,7 @@ export function WorkspaceLayout({
                 href={collaboration.githubRepo}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg border border-[#E5E0D8] bg-white px-3 py-2 text-sm font-medium text-[#111] transition hover:border-[#FF5C00] hover:text-[#FF5C00]"
+                className="inline-flex items-center gap-2 rounded-lg border border-[#E5E0D8] bg-white px-3 py-2 text-sm font-medium text-[#111] transition hover:border-[#FF5C00] hover:text-[#FF5C00] dark:border-[#3A342C] dark:bg-[#171717] dark:text-[#F6F2EA]"
               >
                 <FaCodeBranch className="text-xs" />
                 Repo
@@ -959,7 +978,7 @@ export function WorkspaceLayout({
                 href={collaboration.designDoc}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg border border-[#E5E0D8] bg-white px-3 py-2 text-sm font-medium text-[#111] transition hover:border-[#FF5C00] hover:text-[#FF5C00]"
+                className="inline-flex items-center gap-2 rounded-lg border border-[#E5E0D8] bg-white px-3 py-2 text-sm font-medium text-[#111] transition hover:border-[#FF5C00] hover:text-[#FF5C00] dark:border-[#3A342C] dark:bg-[#171717] dark:text-[#F6F2EA]"
               >
                 <FaFileLines className="text-xs" />
                 Docs
@@ -1090,7 +1109,7 @@ export function WorkspaceLayout({
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="border-b border-[#E4DED5] bg-white px-4 py-3 md:hidden">
+          <div className="border-b border-[#E4DED5] bg-white px-4 py-3 dark:border-[#242424] dark:bg-[#111111] md:hidden">
             <div className="flex gap-2 overflow-x-auto">
               {[
                 "announcements",
@@ -1105,7 +1124,7 @@ export function WorkspaceLayout({
                   className={`whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium ${
                     activeView === view
                       ? "bg-[#FF5C00] text-white"
-                      : "bg-[#F1EDE5] text-[#5F584E]"
+                      : "bg-[#F1EDE5] text-[#5F584E] dark:bg-[#1D1D1D] dark:text-[#D5CDC1]"
                   }`}
                 >
                   {view}
@@ -1117,9 +1136,9 @@ export function WorkspaceLayout({
           <div className="min-h-0 flex-1">{renderView()}</div>
         </div>
 
-        <aside className="hidden w-[280px] shrink-0 border-l border-[#E4DED5] bg-white xl:flex xl:flex-col">
+        <aside className="hidden w-[280px] shrink-0 border-l border-[#E4DED5] bg-white dark:border-[#242424] dark:bg-[#111111] xl:flex xl:flex-col">
           <div className="px-5 py-5">
-            <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174]">
+            <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174] dark:text-[#8F887B]">
               Team
             </div>
             <div className="mt-4 space-y-3">
@@ -1132,15 +1151,15 @@ export function WorkspaceLayout({
                       <FaCircle className="absolute -bottom-0.5 -right-0.5 text-[10px] text-emerald-500" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-[#181512]">
+                      <p className="truncate text-sm font-medium text-[#181512] dark:text-[#F6F2EA]">
                         {member.name}
                       </p>
-                      <p className="truncate text-xs text-[#8A8174]">
+                      <p className="truncate text-xs text-[#8A8174] dark:text-[#8F887B]">
                         {isLead ? "Project lead" : member.university || "Collaborator"}
                       </p>
                     </div>
                     {isLead && (
-                      <span className="rounded bg-[#FFF1E8] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#D94E00]">
+                      <span className="rounded bg-[#FFF1E8] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#D94E00] dark:bg-[#2A1B14] dark:text-[#FFAA73]">
                         Lead
                       </span>
                     )}
@@ -1150,29 +1169,29 @@ export function WorkspaceLayout({
             </div>
           </div>
 
-          <div className="mx-5 h-px bg-[#EAE4DA]" />
+          <div className="mx-5 h-px bg-[#EAE4DA] dark:bg-[#242424]" />
 
           <div className="px-5 py-5">
-            <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174]">
+            <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174] dark:text-[#8F887B]">
               Workspace Snapshot
             </div>
 
             {chatContext.currentUserRole === "host" ? (
-              <div className="mt-4 rounded-2xl border border-[#E5E0D8] p-4">
-                <div className="flex items-center gap-2 text-sm font-semibold text-[#1B1814]">
+              <div className="mt-4 rounded-2xl border border-[#E5E0D8] p-4 dark:border-[#2A2A2A] dark:bg-[#141414]">
+                <div className="flex items-center gap-2 text-sm font-semibold text-[#1B1814] dark:text-[#F6F2EA]">
                   <FaClock className="text-xs text-[#FF5C00]" />
                   Sprint Progress
                 </div>
-                <p className="mt-2 font-mono text-xs text-[#8A8174]">
+                <p className="mt-2 font-mono text-xs text-[#8A8174] dark:text-[#8F887B]">
                   {completedMembersCount} of {memberCount} members have completed at least one task
                 </p>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#EEE8DE]">
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#EEE8DE] dark:bg-[#262626]">
                   <div
                     className="h-full rounded-full bg-[#FF5C00]"
                     style={{ width: `${sprintProgress}%` }}
                   />
                 </div>
-                <div className="mt-2 flex justify-between text-xs text-[#7A7267]">
+                <div className="mt-2 flex justify-between text-xs text-[#7A7267] dark:text-[#A8A093]">
                   <span>{sprintProgress}% done</span>
                   <span>{completedPlanningTasks} task(s) touched</span>
                 </div>
@@ -1180,15 +1199,17 @@ export function WorkspaceLayout({
             ) : null}
 
             <div className="mt-4 grid gap-3">
-              <div className="rounded-2xl border border-[#E5E0D8] p-4">
-                <div className="flex items-center gap-2 text-sm font-semibold text-[#1B1814]">
+              <div className="rounded-2xl border border-[#E5E0D8] p-4 dark:border-[#2A2A2A] dark:bg-[#141414]">
+                <div className="flex items-center gap-2 text-sm font-semibold text-[#1B1814] dark:text-[#F6F2EA]">
                   <FaUsers className="text-xs text-[#FF5C00]" />
                   Capacity
                 </div>
-                <p className="mt-2 text-sm text-[#5E564B]">
-                  {memberCount} active member(s) across {maxPositions + 1} planned seats.
+                <p className="mt-2 text-sm text-[#5E564B] dark:text-[#C8C2B7]">
+                  {plannedSeats
+                    ? `${memberCount} active member(s) across ${plannedSeats} planned seats.`
+                    : `${memberCount} active member(s) in an open-to-all workspace.`}
                 </p>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#EEE8DE]">
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#EEE8DE] dark:bg-[#262626]">
                   <div
                     className="h-full rounded-full bg-[#111111]"
                     style={{ width: `${occupancy}%` }}
@@ -1196,22 +1217,22 @@ export function WorkspaceLayout({
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-[#E5E0D8] p-4">
-                <div className="flex items-center gap-2 text-sm font-semibold text-[#1B1814]">
+              <div className="rounded-2xl border border-[#E5E0D8] p-4 dark:border-[#2A2A2A] dark:bg-[#141414]">
+                <div className="flex items-center gap-2 text-sm font-semibold text-[#1B1814] dark:text-[#F6F2EA]">
                   <FaFolderOpen className="text-xs text-[#FF5C00]" />
                   Resources
                 </div>
-                <p className="mt-2 text-sm text-[#5E564B]">
-                  {resources.length} saved resource(s) available to the team.
+                <p className="mt-2 text-sm text-[#5E564B] dark:text-[#C8C2B7]">
+                  {(resources || []).length} saved resource(s) available to the team.
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="mx-5 h-px bg-[#EAE4DA]" />
+          <div className="mx-5 h-px bg-[#EAE4DA] dark:bg-[#242424]" />
 
           <div className="flex-1 px-5 py-5">
-            <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174]">
+            <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174] dark:text-[#8F887B]">
               Quick Links
             </div>
             <div className="mt-4 space-y-2">
@@ -1226,7 +1247,7 @@ export function WorkspaceLayout({
                         ? "noopener noreferrer"
                         : undefined
                     }
-                    className="flex items-center gap-3 rounded-xl border border-[#E5E0D8] px-3 py-3 text-sm text-[#1B1814] transition hover:border-[#FF5C00] hover:text-[#FF5C00]"
+                    className="flex items-center gap-3 rounded-xl border border-[#E5E0D8] px-3 py-3 text-sm text-[#1B1814] transition hover:border-[#FF5C00] hover:text-[#FF5C00] dark:border-[#2A2A2A] dark:bg-[#141414] dark:text-[#F6F2EA]"
                   >
                     {link.icon || <FaLink className="text-xs" />}
                     <span>{link.label}</span>
