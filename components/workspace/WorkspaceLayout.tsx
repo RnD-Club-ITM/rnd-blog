@@ -1040,7 +1040,7 @@ export function WorkspaceLayout({
       </div>
 
       <div className="flex min-h-0 flex-1">
-        <aside className="hidden w-[250px] shrink-0 flex-col bg-[#111111] text-[#CFC7BC] md:flex">
+        <aside className="hidden w-[250px] shrink-0 flex-col overflow-y-auto bg-[#111111] text-[#CFC7BC] md:flex">
           <div className="px-4 pt-5">
             <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#5D564D]">
               Project Space
@@ -1187,7 +1187,7 @@ export function WorkspaceLayout({
           <div className="min-h-0 flex-1">{renderView()}</div>
         </div>
 
-        <aside className="hidden w-[280px] shrink-0 border-l border-[#E4DED5] bg-white dark:border-[#242424] dark:bg-[#111111] xl:flex xl:flex-col">
+        <aside className="hidden w-[280px] shrink-0 overflow-y-auto border-l border-[#E4DED5] bg-white dark:border-[#242424] dark:bg-[#111111] xl:flex xl:flex-col">
           <div className="px-5 py-5">
             <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174] dark:text-[#8F887B]">
               Team

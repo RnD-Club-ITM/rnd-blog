@@ -30,9 +30,14 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SPARK ⚡ - Ignite Ideas. Build Together. Prove Your Work.",
+  title: "SPARK - Ignite Ideas. Build Together. Prove Your Work.",
   description:
     "The ONLY platform combining peer-curated research, authentic storytelling, verifiable portfolios, and collaborative community—built for Gen Z engineers.",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({
