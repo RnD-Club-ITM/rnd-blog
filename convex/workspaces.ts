@@ -105,3 +105,41 @@ export const listChannels = query({
       .collect();
   },
 });
+
+export const deactivateMember = mutation({
+  args: {
+    workspaceId: v.string(),
+    targetUserId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { membership } = await requireMembership(ctx, args.workspaceId);
+
+    if (membership.role !== "host") {
+      throw new Error("Only the project host can remove workspace members");
+    }
+
+    const targetMembership = await ctx.db
+      .query("memberships")
+      .withIndex("by_workspace_user", (query) =>
+        query
+          .eq("workspaceId", args.workspaceId)
+          .eq("userId", args.targetUserId),
+      )
+      .unique();
+
+    if (!targetMembership) {
+      return { success: true };
+    }
+
+    if (targetMembership.role === "host") {
+      throw new Error("The project host cannot be removed");
+    }
+
+    await ctx.db.patch(targetMembership._id, {
+      active: false,
+      syncedAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});

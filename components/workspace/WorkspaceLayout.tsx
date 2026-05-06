@@ -349,6 +349,7 @@ export function WorkspaceLayout({
   const router = useRouter();
   const { isLoading: chatAuthLoading, isAuthenticated } = useConvexAuth();
   const syncWorkspaceAccess = useMutation(api.workspaces.syncWorkspaceAccess);
+  const deactivateMember = useMutation(api.workspaces.deactivateMember);
   const [activeView, setActiveView] = useState<ViewKey>("announcements");
   const [newResourceTitle, setNewResourceTitle] = useState("");
   const [newResourceUrl, setNewResourceUrl] = useState("");
@@ -359,6 +360,10 @@ export function WorkspaceLayout({
   const [isUpdatingApplicant, setIsUpdatingApplicant] = useState<string | null>(
     null,
   );
+  const [confirmingRemovalMemberId, setConfirmingRemovalMemberId] = useState<
+    string | null
+  >(null);
+  const [isRemovingMember, setIsRemovingMember] = useState<string | null>(null);
   const [chatSyncStatus, setChatSyncStatus] = useState<"idle" | "ready" | "error">(
     "idle",
   );
@@ -502,6 +507,52 @@ export function WorkspaceLayout({
       );
     } finally {
       setIsUpdatingApplicant(null);
+    }
+  };
+
+  const removeMember = async (member: WorkspaceMember) => {
+    if (!member._id || !member.clerkId) {
+      toast.error("This member cannot be removed right now.");
+      return;
+    }
+
+    setIsRemovingMember(member._id);
+    try {
+      const response = await fetch("/api/collaborate/members/remove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          collaborationId: collaboration._id,
+          memberUserId: member._id,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        throw new Error(payload?.error || "Failed to remove member");
+      }
+
+      if (chatReady) {
+        try {
+          await deactivateMember({
+            workspaceId: collaboration._id,
+            targetUserId: member.clerkId,
+          });
+        } catch (error) {
+          console.error("Failed to revoke Convex membership immediately:", error);
+        }
+      }
+
+      setConfirmingRemovalMemberId(null);
+      toast.success("Member removed from the workspace.");
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : "Failed to remove member");
+    } finally {
+      setIsRemovingMember(null);
     }
   };
 
@@ -1144,6 +1195,8 @@ export function WorkspaceLayout({
             <div className="mt-4 space-y-3">
               {allMembers.map((member) => {
                 const isLead = member._id === collaboration.postedBy?._id;
+                const isConfirmingRemoval = confirmingRemovalMemberId === member._id;
+                const isRemovalPending = isRemovingMember === member._id;
                 return (
                   <div key={member._id} className="flex items-center gap-3">
                     <div className="relative">
@@ -1163,6 +1216,36 @@ export function WorkspaceLayout({
                         Lead
                       </span>
                     )}
+                    {!isLead && chatContext.currentUserRole === "host" ? (
+                      <button
+                        onClick={() => {
+                          if (isConfirmingRemoval) {
+                            void removeMember(member);
+                            return;
+                          }
+                          setConfirmingRemovalMemberId(member._id);
+                        }}
+                        onBlur={() => {
+                          if (!isRemovalPending) {
+                            setConfirmingRemovalMemberId((current) =>
+                              current === member._id ? null : current,
+                            );
+                          }
+                        }}
+                        disabled={isRemovalPending}
+                        className={`rounded border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] transition ${
+                          isConfirmingRemoval
+                            ? "border-red-300 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/70 dark:bg-red-950/40 dark:text-red-300"
+                            : "border-[#E5E0D8] text-[#7A7267] hover:border-[#FF5C00] hover:text-[#FF5C00] dark:border-[#3A342C] dark:text-[#A8A093] dark:hover:border-[#FF5C00] dark:hover:text-[#FFAA73]"
+                        } disabled:opacity-60`}
+                      >
+                        {isRemovalPending
+                          ? "Removing..."
+                          : isConfirmingRemoval
+                            ? "Confirm"
+                            : "Remove"}
+                      </button>
+                    ) : null}
                   </div>
                 );
               })}

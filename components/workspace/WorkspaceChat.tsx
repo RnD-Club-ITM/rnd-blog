@@ -257,7 +257,7 @@ function SyncedRealtimeWorkspaceChat({
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastChannelRef = useRef(channelSlug);
 
@@ -808,12 +808,12 @@ function SyncedRealtimeWorkspaceChat({
         )}
       </div>
 
-      <div className="flex flex-shrink-0 gap-2 border-t border-[#E5E0D8] bg-white px-5 py-4 dark:border-[#2A2A2A] dark:bg-[#111111]">
-        <input
+      <div className="flex flex-shrink-0 items-end gap-2 border-t border-[#E5E0D8] bg-white px-5 py-4 dark:border-[#2A2A2A] dark:bg-[#111111]">
+        <textarea
           ref={inputRef}
-          type="text"
           value={newMessage}
           onChange={(event) => setNewMessage(event.target.value)}
+          rows={1}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {
               event.preventDefault();
@@ -826,7 +826,7 @@ function SyncedRealtimeWorkspaceChat({
               : "Only the workspace host can post here"
           }
           disabled={!canPost || isSending || isUploading}
-          className="flex-1 rounded-xl border border-[#DED7CC] bg-[#FCFBF8] px-4 py-3 text-sm text-[#181512] outline-none transition-all placeholder:text-[#9B9287] focus:border-[#FF5C00] disabled:cursor-not-allowed disabled:bg-[#F7F5F0] dark:border-[#3A342C] dark:bg-[#171717] dark:text-[#F6F2EA] dark:placeholder:text-[#7E766B] dark:disabled:bg-[#151515]"
+          className="min-h-[50px] max-h-40 flex-1 resize-none overflow-y-auto rounded-xl border border-[#DED7CC] bg-[#FCFBF8] px-4 py-3 text-sm text-[#181512] outline-none transition-all placeholder:text-[#9B9287] focus:border-[#FF5C00] disabled:cursor-not-allowed disabled:bg-[#F7F5F0] dark:border-[#3A342C] dark:bg-[#171717] dark:text-[#F6F2EA] dark:placeholder:text-[#7E766B] dark:disabled:bg-[#151515]"
         />
         <input
           ref={fileInputRef}
