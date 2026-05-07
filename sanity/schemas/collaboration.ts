@@ -42,14 +42,7 @@ export const collaborationSchema = defineType({
             name: 'duration',
             title: 'Duration',
             type: 'string',
-            options: {
-                list: [
-                    '1-2 weeks',
-                    '3-4 weeks',
-                    '1-2 months',
-                    '3+ months',
-                ],
-            },
+            description: 'Custom timeline or duration text, e.g. "1 day event" or "Slot 2: 2 PM - 5 PM"',
         }),
         defineField({
             name: 'commitment',
@@ -61,9 +54,8 @@ export const collaborationSchema = defineType({
             name: 'maxPositions',
             title: 'Max Positions',
             type: 'number',
-            description: 'Maximum number of collaborators allowed (excluding owner)',
-            initialValue: 3,
-            validation: (Rule) => Rule.min(1).max(20),
+            description: 'Optional seat limit. Leave empty to keep the workspace open to all.',
+            validation: (Rule) => Rule.min(1).max(500),
         }),
         defineField({
             name: 'postedBy',

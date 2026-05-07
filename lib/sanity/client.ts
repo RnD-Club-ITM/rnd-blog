@@ -155,6 +155,7 @@ export const queries = {
     skillsNeeded,
     duration,
     commitment,
+    maxPositions,
     "postedBy": postedBy->{_id, name, avatar, tier, clerkId},
     "teamMembers": teamMembers[]->{_id, clerkId},
     "applicants": applicants[] {

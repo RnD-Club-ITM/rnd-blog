@@ -1,18 +1,17 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { format } from "date-fns";
 import { getImageUrl } from "@/lib/sanity/client";
 import { WorkspaceChat } from "@/components/workspace/WorkspaceChat";
 import { WorkspaceBoard } from "@/components/workspace/WorkspaceBoard";
+import { WorkspacePlanning } from "@/components/workspace/WorkspacePlanning";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
-  FaArrowLeft,
-  FaArrowRight,
   FaBookOpen,
   FaCheck,
   FaCircle,
@@ -41,23 +40,14 @@ type ViewKey =
   | "resources"
   | "canvas";
 
-type TaskStatus = "todo" | "progress" | "review" | "done";
-
-interface WorkspaceTask {
-  id: string;
-  title: string;
-  status: TaskStatus;
-  tag: string;
-  priority: "high" | "medium" | "low";
-  assigneeId?: string;
-}
-
 interface WorkspaceResource {
-  id: string;
+  _id: string;
   title: string;
   url: string;
   type: string;
   description: string;
+  createdBy?: string;
+  createdByName?: string;
 }
 
 interface WorkspaceMember {
@@ -126,8 +116,25 @@ interface QuickLink {
 interface ChatContext {
   convexConfigured: boolean;
   currentUserRole: "host" | "member";
+  currentUserClerkId: string;
   memberName: string;
   memberAvatarUrl?: string;
+}
+
+interface PlanningTaskSummary {
+  _id: string;
+  completionCount?: number;
+}
+
+interface PlanningColumnSummary {
+  _id: string;
+  title: string;
+  tasks: PlanningTaskSummary[];
+}
+
+interface PlanningBoardSummary {
+  columns: PlanningColumnSummary[];
+  completedMembersCount?: number;
 }
 
 const DEFAULT_CHAT_CHANNELS = [
@@ -160,13 +167,6 @@ const statusConfig: Record<string, { label: string; tone: string }> = {
   completed: { label: "Completed", tone: "bg-blue-50 text-blue-700" },
 };
 
-const columns: { key: TaskStatus; label: string }[] = [
-  { key: "todo", label: "To Do" },
-  { key: "progress", label: "In Progress" },
-  { key: "review", label: "In Review" },
-  { key: "done", label: "Done" },
-];
-
 function getInitials(name?: string | null) {
   if (!name) return "?";
   return name
@@ -184,40 +184,6 @@ function formatWorkspaceDate(value?: string) {
   } catch {
     return "Recently";
   }
-}
-
-function seedTasks(): WorkspaceTask[] {
-  return [];
-}
-
-function seedResources(): WorkspaceResource[] {
-  return [];
-}
-
-const LEGACY_TASK_IDS = new Set(["brief", "setup", "docs", "research", "sync"]);
-const LEGACY_RESOURCE_IDS = new Set(["repo", "doc", "scope"]);
-
-function sanitizeStoredTasks(tasks: WorkspaceTask[] | undefined) {
-  if (!tasks?.length) return [];
-  return tasks.filter((task) => !LEGACY_TASK_IDS.has(task.id));
-}
-
-function sanitizeStoredResources(resources: WorkspaceResource[] | undefined) {
-  if (!resources?.length) return [];
-  return resources.filter((resource) => !LEGACY_RESOURCE_IDS.has(resource.id));
-}
-
-function getPriorityClasses(priority: WorkspaceTask["priority"]) {
-  if (priority === "high") return "bg-orange-100 text-orange-700";
-  if (priority === "medium") return "bg-blue-100 text-blue-700";
-  return "bg-zinc-100 text-zinc-600";
-}
-
-function getTaskTagClasses(status: TaskStatus) {
-  if (status === "progress") return "bg-orange-50 text-orange-700";
-  if (status === "done") return "bg-emerald-50 text-emerald-700";
-  if (status === "review") return "bg-blue-50 text-blue-700";
-  return "bg-stone-100 text-stone-700";
 }
 
 function MemberAvatar({
@@ -281,7 +247,6 @@ function WorkspaceChannelSidebarContent({
           key: "announcements",
           label: "announcements",
           icon: "#",
-          accent: "bg-emerald-500",
         },
         {
           key: "chat",
@@ -306,9 +271,6 @@ function WorkspaceChannelSidebarContent({
               {item.icon}
             </span>
             <span>{item.label}</span>
-            {item.accent && unreadCount === 0 ? (
-              <span className={`ml-auto h-2 w-2 rounded-full ${item.accent}`} />
-            ) : null}
             {unreadCount > 0 ? (
               <span className="ml-auto rounded-full bg-[#FF5C00] px-2 py-0.5 font-mono text-[10px] text-white">
                 {unreadCount}
@@ -387,13 +349,21 @@ export function WorkspaceLayout({
   const router = useRouter();
   const { isLoading: chatAuthLoading, isAuthenticated } = useConvexAuth();
   const syncWorkspaceAccess = useMutation(api.workspaces.syncWorkspaceAccess);
+  const deactivateMember = useMutation(api.workspaces.deactivateMember);
   const [activeView, setActiveView] = useState<ViewKey>("announcements");
-  const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newResourceTitle, setNewResourceTitle] = useState("");
   const [newResourceUrl, setNewResourceUrl] = useState("");
+  const [isAddingResource, setIsAddingResource] = useState(false);
+  const [pendingResourceDeleteId, setPendingResourceDeleteId] = useState<string | null>(
+    null,
+  );
   const [isUpdatingApplicant, setIsUpdatingApplicant] = useState<string | null>(
     null,
   );
+  const [confirmingRemovalMemberId, setConfirmingRemovalMemberId] = useState<
+    string | null
+  >(null);
+  const [isRemovingMember, setIsRemovingMember] = useState<string | null>(null);
   const [chatSyncStatus, setChatSyncStatus] = useState<"idle" | "ready" | "error">(
     "idle",
   );
@@ -422,62 +392,13 @@ export function WorkspaceLayout({
 
   const allMembers = Array.from(uniqueMembers.values());
   const memberCount = allMembers.length;
-  const maxPositions = collaboration.maxPositions || 3;
-  const occupancy = Math.min(
-    100,
-    Math.round((memberCount / Math.max(maxPositions + 1, 1)) * 100),
-  );
+  const hasSeatLimit = typeof collaboration.maxPositions === "number";
+  const maxPositions = collaboration.maxPositions;
+  const plannedSeats = hasSeatLimit ? (maxPositions as number) + 1 : undefined;
+  const occupancy = plannedSeats
+    ? Math.min(100, Math.round((memberCount / Math.max(plannedSeats, 1)) * 100))
+    : 100;
 
-  const storageKey = `spark-workspace-${collaboration._id}`;
-  const seededTasks = useMemo(() => seedTasks(), []);
-  const seededResources = useMemo(() => seedResources(), []);
-  const [tasks, setTasks] = useState<WorkspaceTask[]>(() => {
-    if (typeof window === "undefined") return seededTasks;
-    try {
-      const stored = window.localStorage.getItem(storageKey);
-      if (!stored) return seededTasks;
-      const parsed = JSON.parse(stored) as { tasks?: WorkspaceTask[] };
-      const cleaned = sanitizeStoredTasks(parsed.tasks);
-      return cleaned.length ? cleaned : seededTasks;
-    } catch {
-      return seededTasks;
-    }
-  });
-  const [resources, setResources] = useState<WorkspaceResource[]>(() => {
-    if (typeof window === "undefined") return seededResources;
-    try {
-      const stored = window.localStorage.getItem(storageKey);
-      if (!stored) return seededResources;
-      const parsed = JSON.parse(stored) as { resources?: WorkspaceResource[] };
-      const cleaned = sanitizeStoredResources(parsed.resources);
-      return cleaned.length ? cleaned : seededResources;
-    } catch {
-      return seededResources;
-    }
-  });
- 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(
-      storageKey,
-      JSON.stringify({ tasks, resources }),
-    );
-  }, [resources, storageKey, tasks]);
-
-  const taskCounts = useMemo(() => {
-    return columns.reduce(
-      (acc, column) => {
-        acc[column.key] = tasks.filter((task) => task.status === column.key).length;
-        return acc;
-      },
-      { todo: 0, progress: 0, review: 0, done: 0 } as Record<TaskStatus, number>,
-    );
-  }, [tasks]);
-
-  const completedTasks = taskCounts.done;
-  const sprintProgress = tasks.length
-    ? Math.round((completedTasks / tasks.length) * 100)
-    : 0;
   const quickLinks: QuickLink[] = [
     ...(collaboration.githubRepo
       ? [
@@ -511,65 +432,43 @@ export function WorkspaceLayout({
     },
   ];
 
-  const addTask = () => {
-    const title = newTaskTitle.trim();
-    if (!title) return;
-
-    setTasks((current) => [
-      ...current,
-      {
-        id: crypto.randomUUID(),
-        title,
-        status: "todo",
-        tag: "TASK",
-        priority: "medium",
-        assigneeId: collaboration.postedBy?._id,
-      },
-    ]);
-    setNewTaskTitle("");
-  };
-
-  const deleteTask = (taskId: string) => {
-    setTasks((current) => current.filter((task) => task.id !== taskId));
-  };
-
-  const moveTask = (taskId: string, direction: "left" | "right") => {
-    setTasks((current) =>
-      current.map((task) => {
-        if (task.id !== taskId) return task;
-        const currentIndex = columns.findIndex((column) => column.key === task.status);
-        const nextIndex =
-          direction === "left"
-            ? Math.max(0, currentIndex - 1)
-            : Math.min(columns.length - 1, currentIndex + 1);
-        return { ...task, status: columns[nextIndex].key };
-      }),
-    );
-  };
-
-  const addResource = () => {
+  const addResource = async () => {
     const title = newResourceTitle.trim();
     const url = newResourceUrl.trim();
     if (!title || !url) return;
 
-    setResources((current) => [
-      ...current,
-      {
-        id: crypto.randomUUID(),
+    setIsAddingResource(true);
+    try {
+      await createResource({
+        workspaceId: collaboration._id,
         title,
         url,
         type: "Link",
-        description: "Added by the team to support current collaboration work.",
-      },
-    ]);
-    setNewResourceTitle("");
-    setNewResourceUrl("");
+        description: "Shared with the workspace.",
+      });
+      setNewResourceTitle("");
+      setNewResourceUrl("");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to add resource");
+    } finally {
+      setIsAddingResource(false);
+    }
   };
 
-  const deleteResource = (resourceId: string) => {
-    setResources((current) =>
-      current.filter((resource) => resource.id !== resourceId),
-    );
+  const deleteResource = async (resourceId: string) => {
+    setPendingResourceDeleteId(resourceId);
+    try {
+      await deleteResourceMutation({
+        workspaceId: collaboration._id,
+        resourceId: resourceId as never,
+      });
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete resource",
+      );
+    } finally {
+      setPendingResourceDeleteId(null);
+    }
   };
 
   const updateApplicantStatus = async (
@@ -608,6 +507,52 @@ export function WorkspaceLayout({
       );
     } finally {
       setIsUpdatingApplicant(null);
+    }
+  };
+
+  const removeMember = async (member: WorkspaceMember) => {
+    if (!member._id || !member.clerkId) {
+      toast.error("This member cannot be removed right now.");
+      return;
+    }
+
+    setIsRemovingMember(member._id);
+    try {
+      const response = await fetch("/api/collaborate/members/remove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          collaborationId: collaboration._id,
+          memberUserId: member._id,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        throw new Error(payload?.error || "Failed to remove member");
+      }
+
+      if (chatReady) {
+        try {
+          await deactivateMember({
+            workspaceId: collaboration._id,
+            targetUserId: member.clerkId,
+          });
+        } catch (error) {
+          console.error("Failed to revoke Convex membership immediately:", error);
+        }
+      }
+
+      setConfirmingRemovalMemberId(null);
+      toast.success("Member removed from the workspace.");
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : "Failed to remove member");
+    } finally {
+      setIsRemovingMember(null);
     }
   };
 
@@ -676,29 +621,61 @@ export function WorkspaceLayout({
   const chatPreparing =
     chatContext.convexConfigured &&
     (chatAuthLoading || (isAuthenticated && chatSyncStatus === "idle"));
+  const resources = useQuery(
+    api.resources.list,
+    chatReady ? { workspaceId: collaboration._id } : "skip",
+  ) as WorkspaceResource[] | undefined;
+  const createResource = useMutation(api.resources.create);
+  const deleteResourceMutation = useMutation(api.resources.remove);
+  const planningBoard = useQuery(
+    api.planning.board,
+    chatReady ? { workspaceId: collaboration._id } : "skip",
+  ) as PlanningBoardSummary | undefined;
+  const planningColumns = planningBoard?.columns || [];
+  const totalPlanningTasks = planningColumns.reduce(
+    (sum, column) => sum + column.tasks.length,
+    0,
+  );
+  const completedPlanningTasks = planningColumns
+    .reduce(
+      (sum, column) =>
+        sum + column.tasks.filter((task) => (task.completionCount ?? 0) > 0).length,
+      0,
+    );
+  const completedMembersCount = planningBoard?.completedMembersCount ?? 0;
+  const sprintProgress = totalPlanningTasks
+    ? Math.round((completedPlanningTasks / totalPlanningTasks) * 100)
+    : 0;
+  const planningUnavailableReason = !chatContext.convexConfigured
+    ? "Shared planning is unavailable because NEXT_PUBLIC_CONVEX_URL is missing."
+    : !chatAuthLoading && !isAuthenticated
+      ? "Clerk sign-in is active, but Convex is not seeing an authenticated session yet."
+      : chatSyncStatus === "error"
+        ? chatSyncError
+        : undefined;
 
   const renderView = () => {
     if (activeView === "announcements") {
       return (
-        <div className="flex h-full flex-col overflow-y-auto bg-[#FCFBF8]">
-          <div className="border-b border-[#E5E0D8] bg-white px-6 py-5">
-            <div className="flex items-center gap-3 text-sm font-semibold text-[#111]">
-              <FaHashtag className="text-xs text-[#8A8174]" />
+        <div className="flex h-full flex-col overflow-y-auto bg-[#FCFBF8] dark:bg-[#0D0D0D]">
+          <div className="border-b border-[#E5E0D8] bg-white px-6 py-5 dark:border-[#2A2A2A] dark:bg-[#111111]">
+            <div className="flex items-center gap-3 text-sm font-semibold text-[#111] dark:text-[#F6F2EA]">
+              <FaHashtag className="text-xs text-[#8A8174] dark:text-[#8F887B]" />
               announcements
             </div>
-            <p className="mt-1 text-sm text-[#7A7267]">
+            <p className="mt-1 text-sm text-[#7A7267] dark:text-[#A8A093]">
               Project brief and host updates. This is the home base for the workspace.
             </p>
           </div>
 
           <div className="px-6 py-5">
             <div className="mb-4 flex justify-center">
-              <span className="rounded-full border border-[#E5E0D8] bg-white px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-[#8A8174]">
+              <span className="rounded-full border border-[#E5E0D8] bg-white px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-[#8A8174] dark:border-[#2E2E2E] dark:bg-[#161616] dark:text-[#8F887B]">
                 {formatWorkspaceDate(collaboration._createdAt)}
               </span>
             </div>
 
-            <div className="overflow-hidden rounded-2xl border border-[#E5E0D8] bg-white shadow-[0_12px_40px_rgba(17,17,17,0.05)]">
+            <div className="overflow-hidden rounded-2xl border border-[#E5E0D8] bg-white shadow-[0_12px_40px_rgba(17,17,17,0.05)] dark:border-[#2A2A2A] dark:bg-[#141414] dark:shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
               <div className="bg-[#111111] px-6 py-6 text-white">
                 <div className="text-[11px] uppercase tracking-[0.2em] text-[#FF8E56]">
                   Project Brief
@@ -717,19 +694,19 @@ export function WorkspaceLayout({
 
               <div className="space-y-6 px-6 py-6">
                 <section>
-                  <h3 className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174]">
+                  <h3 className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174] dark:text-[#8F887B]">
                     Problem Statement
                   </h3>
-                  <p className="mt-2 text-[15px] leading-7 text-[#4E473E]">
+                  <p className="mt-2 text-[15px] leading-7 text-[#4E473E] dark:text-[#C8C2B7]">
                     {collaboration.description}
                   </p>
                 </section>
 
                 <section>
-                  <h3 className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174]">
+                  <h3 className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174] dark:text-[#8F887B]">
                     What This Team Needs
                   </h3>
-                  <p className="mt-2 text-[15px] leading-7 text-[#4E473E]">
+                  <p className="mt-2 text-[15px] leading-7 text-[#4E473E] dark:text-[#C8C2B7]">
                     {collaboration.skillsNeeded?.length
                       ? `Looking for collaborators across ${collaboration.skillsNeeded.join(", ")}.`
                       : "Looking for collaborators who can help move the project from idea to execution."}{" "}
@@ -740,20 +717,20 @@ export function WorkspaceLayout({
                 </section>
 
                 <section>
-                  <h3 className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174]">
+                  <h3 className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174] dark:text-[#8F887B]">
                     Stack And Workstreams
                   </h3>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {(collaboration.skillsNeeded || []).map((skill: string) => (
                       <span
                         key={skill}
-                        className="rounded-md bg-[#FFF1E8] px-3 py-1.5 font-mono text-xs font-medium text-[#D94E00]"
+                        className="rounded-md bg-[#FFF1E8] px-3 py-1.5 font-mono text-xs font-medium text-[#D94E00] dark:bg-[#2A1B14] dark:text-[#FFAA73]"
                       >
                         {skill}
                       </span>
                     ))}
                     {!collaboration.skillsNeeded?.length && (
-                      <span className="rounded-md bg-[#F3F0EA] px-3 py-1.5 font-mono text-xs text-[#6F675B]">
+                      <span className="rounded-md bg-[#F3F0EA] px-3 py-1.5 font-mono text-xs text-[#6F675B] dark:bg-[#2B2B2B] dark:text-[#D5CDC1]">
                         General collaboration
                       </span>
                     )}
@@ -761,50 +738,50 @@ export function WorkspaceLayout({
                 </section>
 
                 <section className="grid gap-3 md:grid-cols-2">
-                  <div className="rounded-xl border border-[#E8E2D9] bg-[#FCFBF8] p-4">
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-[#8A8174]">
+                  <div className="rounded-xl border border-[#E8E2D9] bg-[#FCFBF8] p-4 dark:border-[#2A2A2A] dark:bg-[#191919]">
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-[#8A8174] dark:text-[#8F887B]">
                       Duration
                     </div>
-                    <div className="mt-2 text-sm font-semibold text-[#1B1814]">
+                    <div className="mt-2 text-sm font-semibold text-[#1B1814] dark:text-[#F6F2EA]">
                       {collaboration.duration || "Flexible"}
                     </div>
                   </div>
-                  <div className="rounded-xl border border-[#E8E2D9] bg-[#FCFBF8] p-4">
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-[#8A8174]">
+                  <div className="rounded-xl border border-[#E8E2D9] bg-[#FCFBF8] p-4 dark:border-[#2A2A2A] dark:bg-[#191919]">
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-[#8A8174] dark:text-[#8F887B]">
                       Current Progress
                     </div>
-                    <div className="mt-2 text-sm font-semibold text-[#1B1814]">
-                      {taskCounts.progress + taskCounts.review} active task(s),{" "}
-                      {taskCounts.done} completed
+                    <div className="mt-2 text-sm font-semibold text-[#1B1814] dark:text-[#F6F2EA]">
+                      {completedMembersCount} member(s) have completed work,{" "}
+                      {completedPlanningTasks} task(s) touched
                     </div>
                   </div>
                 </section>
               </div>
             </div>
 
-            <div className="mt-5 rounded-2xl border border-[#E5E0D8] bg-white p-5">
+            <div className="mt-5 rounded-2xl border border-[#E5E0D8] bg-white p-5 dark:border-[#2A2A2A] dark:bg-[#141414]">
               <div className="flex items-center gap-3">
                 <MemberAvatar member={collaboration.postedBy} size={36} />
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="truncate text-sm font-semibold text-[#181512]">
+                    <p className="truncate text-sm font-semibold text-[#181512] dark:text-[#F6F2EA]">
                       {collaboration.postedBy?.name || "Project lead"}
                     </p>
-                    <span className="rounded bg-[#FFF1E8] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#D94E00]">
+                    <span className="rounded bg-[#FFF1E8] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#D94E00] dark:bg-[#2A1B14] dark:text-[#FFAA73]">
                       Host
                     </span>
                   </div>
-                  <p className="text-xs text-[#8A8174]">
+                  <p className="text-xs text-[#8A8174] dark:text-[#8F887B]">
                     Last updated this workspace and aligned the next sprint.
                   </p>
                 </div>
-                <span className="ml-auto text-[11px] font-mono text-[#8A8174]">
+                <span className="ml-auto text-[11px] font-mono text-[#8A8174] dark:text-[#8F887B]">
                   {formatWorkspaceDate(collaboration._createdAt)}
                 </span>
               </div>
             </div>
 
-            <div className="mt-5 h-[540px] overflow-hidden rounded-2xl border border-[#E5E0D8] bg-white">
+            <div className="mt-5 h-[540px] overflow-hidden rounded-2xl border border-[#E5E0D8] bg-white dark:border-[#2A2A2A] dark:bg-[#141414]">
               <WorkspaceChat
                 workspaceId={collaboration._id}
                 channelSlug="announcements"
@@ -863,150 +840,28 @@ export function WorkspaceLayout({
 
     if (activeView === "planning") {
       return (
-        <div className="flex h-full flex-col overflow-hidden bg-[#FCFBF8]">
-          <div className="border-b border-[#E5E0D8] bg-white px-6 py-5">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <div className="flex items-center gap-3 text-sm font-semibold text-[#111]">
-                  <span className="font-mono text-sm text-[#8A8174]">▦</span>
-                  planning
-                </div>
-                <p className="mt-1 text-sm text-[#7A7267]">
-                  Sprint board for the collaboration. Add, move, and remove tasks from here.
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <input
-                  value={newTaskTitle}
-                  onChange={(event) => setNewTaskTitle(event.target.value)}
-                  onKeyDown={(event) => event.key === "Enter" && addTask()}
-                  placeholder="Add a new task"
-                  className="w-full rounded-lg border border-[#DED7CC] bg-[#FCFBF8] px-3 py-2 text-sm text-[#1B1814] outline-none placeholder:text-[#9B9287] focus:border-[#FF5C00] lg:w-64"
-                />
-                <button
-                  onClick={addTask}
-                  className="inline-flex items-center gap-2 rounded-lg bg-[#FF5C00] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#E65400]"
-                >
-                  <FaPlus className="text-xs" />
-                  Task
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-x-auto overflow-y-hidden px-6 py-6">
-            <div className="flex min-w-max gap-4">
-              {columns.map((column) => {
-                const columnTasks = tasks.filter((task) => task.status === column.key);
-                return (
-                  <div
-                    key={column.key}
-                    className="flex w-[280px] flex-col rounded-2xl border border-[#E5E0D8] bg-white"
-                  >
-                    <div className="flex items-center justify-between border-b border-[#EFE9DE] px-4 py-4">
-                      <h3 className="text-sm font-semibold text-[#1B1814]">
-                        {column.label}
-                      </h3>
-                      <span className="rounded-full bg-[#F3EFE7] px-2.5 py-0.5 font-mono text-xs text-[#6E665A]">
-                        {columnTasks.length}
-                      </span>
-                    </div>
-                    <div className="flex flex-1 flex-col gap-3 p-4">
-                      {columnTasks.map((task) => {
-                        const assignee = allMembers.find(
-                          (member) => member._id === task.assigneeId,
-                        );
-
-                        return (
-                          <div
-                            key={task.id}
-                            className="rounded-xl border border-[#ECE5DB] bg-[#FFFEFC] p-4 shadow-[0_10px_24px_rgba(17,17,17,0.04)]"
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <span
-                                className={`rounded-md px-2 py-1 font-mono text-[10px] uppercase tracking-[0.14em] ${getTaskTagClasses(task.status)}`}
-                              >
-                                {task.tag}
-                              </span>
-                              <span
-                                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${getPriorityClasses(task.priority)}`}
-                              >
-                                {task.priority}
-                              </span>
-                            </div>
-                            <p className="mt-3 text-sm font-medium leading-6 text-[#28231C]">
-                              {task.title}
-                            </p>
-                            <div className="mt-4 flex items-center justify-between">
-                              <div className="flex items-center gap-2 text-xs text-[#7A7267]">
-                                {assignee ? (
-                                  <>
-                                    <MemberAvatar member={assignee} size={24} />
-                                    <span>{assignee.name}</span>
-                                  </>
-                                ) : (
-                                  <span>Unassigned</span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <button
-                                  onClick={() => deleteTask(task.id)}
-                                  className="rounded-md border border-[#E5E0D8] p-1.5 text-[#7A7267] transition hover:border-[#FF5C00] hover:text-[#FF5C00]"
-                                  aria-label="Delete task"
-                                >
-                                  <FaTrash className="text-[10px]" />
-                                </button>
-                                <button
-                                  onClick={() => moveTask(task.id, "left")}
-                                  className="rounded-md border border-[#E5E0D8] p-1.5 text-[#7A7267] transition hover:border-[#FF5C00] hover:text-[#FF5C00]"
-                                  aria-label="Move task left"
-                                >
-                                  <FaArrowLeft className="text-[10px]" />
-                                </button>
-                                <button
-                                  onClick={() => moveTask(task.id, "right")}
-                                  className="rounded-md border border-[#E5E0D8] p-1.5 text-[#7A7267] transition hover:border-[#FF5C00] hover:text-[#FF5C00]"
-                                  aria-label="Move task right"
-                                >
-                                  <FaArrowRight className="text-[10px]" />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-
-                      {!columnTasks.length && (
-                        <div className="flex min-h-32 items-center justify-center rounded-xl border border-dashed border-[#E5E0D8] bg-[#FCFBF8] p-4 text-center text-sm text-[#948B80]">
-                          No tasks here yet.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            {!tasks.length && (
-              <div className="mt-6 rounded-2xl border border-dashed border-[#E5E0D8] bg-white p-6 text-center text-sm text-[#7A7267]">
-                No planning tasks yet. Start by adding the first real task for this project.
-              </div>
-            )}
-          </div>
-        </div>
+        <WorkspacePlanning
+          workspaceId={collaboration._id}
+          planningReady={chatReady}
+          planningPreparing={chatPreparing}
+          planningUnavailableReason={planningUnavailableReason}
+          canEdit={chatContext.currentUserRole === "host"}
+          memberCount={memberCount}
+        />
       );
     }
 
     if (activeView === "resources") {
       return (
-        <div className="flex h-full flex-col overflow-y-auto bg-[#FCFBF8]">
-          <div className="border-b border-[#E5E0D8] bg-white px-6 py-5">
+        <div className="flex h-full flex-col overflow-y-auto bg-[#FCFBF8] dark:bg-[#0D0D0D]">
+          <div className="border-b border-[#E5E0D8] bg-white px-6 py-5 dark:border-[#2A2A2A] dark:bg-[#111111]">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <div className="flex items-center gap-3 text-sm font-semibold text-[#111]">
-                  <span className="font-mono text-sm text-[#8A8174]">◈</span>
+                <div className="flex items-center gap-3 text-sm font-semibold text-[#111] dark:text-[#F6F2EA]">
+                  <span className="font-mono text-sm text-[#8A8174] dark:text-[#8F887B]">◈</span>
                   resources
                 </div>
-                <p className="mt-1 text-sm text-[#7A7267]">
+                <p className="mt-1 text-sm text-[#7A7267] dark:text-[#A8A093]">
                   Papers, repos, docs, and references your team can keep in one place.
                 </p>
               </div>
@@ -1015,68 +870,87 @@ export function WorkspaceLayout({
                   value={newResourceTitle}
                   onChange={(event) => setNewResourceTitle(event.target.value)}
                   placeholder="Resource title"
-                  className="rounded-lg border border-[#DED7CC] bg-[#FCFBF8] px-3 py-2 text-sm outline-none placeholder:text-[#9B9287] focus:border-[#FF5C00]"
+                  className="rounded-lg border border-[#DED7CC] bg-[#FCFBF8] px-3 py-2 text-sm outline-none placeholder:text-[#9B9287] focus:border-[#FF5C00] dark:border-[#3A342C] dark:bg-[#171717] dark:text-[#F6F2EA] dark:placeholder:text-[#7E766B]"
                 />
                 <input
                   value={newResourceUrl}
                   onChange={(event) => setNewResourceUrl(event.target.value)}
-                  onKeyDown={(event) => event.key === "Enter" && addResource()}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void addResource();
+                    }
+                  }}
                   placeholder="https://..."
-                  className="rounded-lg border border-[#DED7CC] bg-[#FCFBF8] px-3 py-2 text-sm outline-none placeholder:text-[#9B9287] focus:border-[#FF5C00]"
+                  className="rounded-lg border border-[#DED7CC] bg-[#FCFBF8] px-3 py-2 text-sm outline-none placeholder:text-[#9B9287] focus:border-[#FF5C00] dark:border-[#3A342C] dark:bg-[#171717] dark:text-[#F6F2EA] dark:placeholder:text-[#7E766B]"
                 />
                 <button
-                  onClick={addResource}
+                  onClick={() => void addResource()}
+                  disabled={isAddingResource}
                   className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#FF5C00] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#E65400]"
                 >
                   <FaPlus className="text-xs" />
-                  Add
+                  {isAddingResource ? "Adding..." : "Add"}
                 </button>
               </div>
             </div>
           </div>
 
           <div className="grid gap-4 px-6 py-6 md:grid-cols-2 xl:grid-cols-3">
-            {resources.map((resource) => (
-              <div
-                key={resource.id}
-                className="rounded-2xl border border-[#E5E0D8] bg-white p-5 transition hover:-translate-y-0.5 hover:border-[#FF5C00]"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174]">
-                    {resource.type}
-                  </div>
-                  <button
-                    onClick={() => deleteResource(resource.id)}
-                    className="rounded-md border border-[#E5E0D8] p-1.5 text-[#7A7267] transition hover:border-[#FF5C00] hover:text-[#FF5C00]"
-                    aria-label="Delete resource"
-                  >
-                    <FaTrash className="text-[10px]" />
-                  </button>
-                </div>
-                <a
-                  href={resource.url}
-                  target={resource.url.startsWith("http") ? "_blank" : undefined}
-                  rel={
-                    resource.url.startsWith("http")
-                      ? "noopener noreferrer"
-                      : undefined
-                  }
-                  className="block"
+            {(resources || []).map((resource) => {
+              const canDeleteResource =
+                chatContext.currentUserRole === "host" ||
+                resource.createdBy === chatContext.currentUserClerkId;
+              return (
+                <div
+                  key={resource._id}
+                  className="rounded-2xl border border-[#E5E0D8] bg-white p-5 transition hover:-translate-y-0.5 hover:border-[#FF5C00] dark:border-[#2A2A2A] dark:bg-[#141414]"
                 >
-                  <h3 className="mt-2 text-base font-semibold leading-6 text-[#1B1814]">
-                    {resource.title}
-                  </h3>
-                  <p className="mt-2 truncate font-mono text-xs text-[#3146D7]">
-                    {resource.url}
-                  </p>
-                  <p className="mt-3 text-sm leading-6 text-[#5E564B]">
-                    {resource.description}
-                  </p>
-                </a>
-              </div>
-            ))}
-            {!resources.length && (
-              <div className="rounded-2xl border border-dashed border-[#E5E0D8] bg-white p-6 text-sm text-[#7A7267]">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174] dark:text-[#8F887B]">
+                      {resource.type}
+                    </div>
+                    {canDeleteResource ? (
+                      <button
+                        onClick={() => void deleteResource(resource._id)}
+                        disabled={pendingResourceDeleteId === resource._id}
+                        className="rounded-md border border-[#E5E0D8] p-1.5 text-[#7A7267] transition hover:border-[#FF5C00] hover:text-[#FF5C00] disabled:opacity-50 dark:border-[#3A342C] dark:text-[#A8A093]"
+                        aria-label="Delete resource"
+                      >
+                        <FaTrash className="text-[10px]" />
+                      </button>
+                    ) : null}
+                  </div>
+                  <a
+                    href={resource.url}
+                    target={resource.url.startsWith("http") ? "_blank" : undefined}
+                    rel={
+                      resource.url.startsWith("http")
+                        ? "noopener noreferrer"
+                        : undefined
+                    }
+                    className="block"
+                  >
+                    <h3 className="mt-2 text-base font-semibold leading-6 text-[#1B1814] dark:text-[#F6F2EA]">
+                      {resource.title}
+                    </h3>
+                    <p className="mt-2 truncate font-mono text-xs text-[#3146D7] dark:text-[#93A9FF]">
+                      {resource.url}
+                    </p>
+                    <p className="mt-3 text-sm leading-6 text-[#5E564B] dark:text-[#C8C2B7]">
+                      {resource.description}
+                    </p>
+                    {resource.createdByName ? (
+                      <p className="mt-3 text-xs text-[#8A8174] dark:text-[#8F887B]">
+                        Added by {resource.createdByName}
+                      </p>
+                    ) : null}
+                  </a>
+                </div>
+              );
+            })}
+            {!(resources || []).length && (
+              <div className="rounded-2xl border border-dashed border-[#E5E0D8] bg-white p-6 text-sm text-[#7A7267] dark:border-[#323232] dark:bg-[#141414] dark:text-[#A8A093]">
                 No shared resources yet. Add your first repo, doc, paper, or reference link here.
               </div>
             )}
@@ -1089,8 +963,8 @@ export function WorkspaceLayout({
   };
 
   return (
-    <div className="flex h-full flex-col bg-[#F7F5F0] text-[#111111]">
-      <div className="border-b border-[#E4DED5] bg-white px-4 py-3 md:px-6">
+    <div className="flex h-full flex-col bg-[#F7F5F0] text-[#111111] dark:bg-[#0B0B0B] dark:text-[#F6F2EA]">
+      <div className="border-b border-[#E4DED5] bg-white px-4 py-3 dark:border-[#242424] dark:bg-[#111111] md:px-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex min-w-0 items-start gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#FF5C00] font-black text-white">
@@ -1107,20 +981,22 @@ export function WorkspaceLayout({
                   {status.label}
                 </span>
               </div>
-              <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[#7A7267]">
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[#7A7267] dark:text-[#A8A093]">
                 <span>Host: {collaboration.postedBy?.name || "Unknown"}</span>
                 <span>•</span>
                 <span>
-                  {memberCount} / {maxPositions + 1} members
+                  {plannedSeats
+                    ? `${memberCount} / ${plannedSeats} members`
+                    : `${memberCount} member(s) joined`}
                 </span>
                 <span>•</span>
-                <span>{taskCounts.progress} task(s) in progress</span>
+                <span>{completedMembersCount} member(s) completed work</span>
               </div>
               <div className="mt-2 flex flex-wrap gap-2">
                 {(collaboration.skillsNeeded || []).slice(0, 4).map((skill: string) => (
                   <span
                     key={skill}
-                    className="rounded-md bg-[#F3F0EA] px-2.5 py-1 font-mono text-[11px] text-[#5F584E]"
+                    className="rounded-md bg-[#F3F0EA] px-2.5 py-1 font-mono text-[11px] text-[#5F584E] dark:bg-[#2B2B2B] dark:text-[#D5CDC1]"
                   >
                     {skill}
                   </span>
@@ -1142,7 +1018,7 @@ export function WorkspaceLayout({
                 href={collaboration.githubRepo}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg border border-[#E5E0D8] bg-white px-3 py-2 text-sm font-medium text-[#111] transition hover:border-[#FF5C00] hover:text-[#FF5C00]"
+                className="inline-flex items-center gap-2 rounded-lg border border-[#E5E0D8] bg-white px-3 py-2 text-sm font-medium text-[#111] transition hover:border-[#FF5C00] hover:text-[#FF5C00] dark:border-[#3A342C] dark:bg-[#171717] dark:text-[#F6F2EA]"
               >
                 <FaCodeBranch className="text-xs" />
                 Repo
@@ -1153,7 +1029,7 @@ export function WorkspaceLayout({
                 href={collaboration.designDoc}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg border border-[#E5E0D8] bg-white px-3 py-2 text-sm font-medium text-[#111] transition hover:border-[#FF5C00] hover:text-[#FF5C00]"
+                className="inline-flex items-center gap-2 rounded-lg border border-[#E5E0D8] bg-white px-3 py-2 text-sm font-medium text-[#111] transition hover:border-[#FF5C00] hover:text-[#FF5C00] dark:border-[#3A342C] dark:bg-[#171717] dark:text-[#F6F2EA]"
               >
                 <FaFileLines className="text-xs" />
                 Docs
@@ -1164,7 +1040,7 @@ export function WorkspaceLayout({
       </div>
 
       <div className="flex min-h-0 flex-1">
-        <aside className="hidden w-[250px] shrink-0 flex-col bg-[#111111] text-[#CFC7BC] md:flex">
+        <aside className="hidden w-[250px] shrink-0 flex-col overflow-y-auto bg-[#111111] text-[#CFC7BC] md:flex">
           <div className="px-4 pt-5">
             <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#5D564D]">
               Project Space
@@ -1284,7 +1160,7 @@ export function WorkspaceLayout({
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="border-b border-[#E4DED5] bg-white px-4 py-3 md:hidden">
+          <div className="border-b border-[#E4DED5] bg-white px-4 py-3 dark:border-[#242424] dark:bg-[#111111] md:hidden">
             <div className="flex gap-2 overflow-x-auto">
               {[
                 "announcements",
@@ -1299,7 +1175,7 @@ export function WorkspaceLayout({
                   className={`whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium ${
                     activeView === view
                       ? "bg-[#FF5C00] text-white"
-                      : "bg-[#F1EDE5] text-[#5F584E]"
+                      : "bg-[#F1EDE5] text-[#5F584E] dark:bg-[#1D1D1D] dark:text-[#D5CDC1]"
                   }`}
                 >
                   {view}
@@ -1311,14 +1187,16 @@ export function WorkspaceLayout({
           <div className="min-h-0 flex-1">{renderView()}</div>
         </div>
 
-        <aside className="hidden w-[280px] shrink-0 border-l border-[#E4DED5] bg-white xl:flex xl:flex-col">
+        <aside className="hidden w-[280px] shrink-0 overflow-y-auto border-l border-[#E4DED5] bg-white dark:border-[#242424] dark:bg-[#111111] xl:flex xl:flex-col">
           <div className="px-5 py-5">
-            <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174]">
+            <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174] dark:text-[#8F887B]">
               Team
             </div>
             <div className="mt-4 space-y-3">
               {allMembers.map((member) => {
                 const isLead = member._id === collaboration.postedBy?._id;
+                const isConfirmingRemoval = confirmingRemovalMemberId === member._id;
+                const isRemovalPending = isRemovingMember === member._id;
                 return (
                   <div key={member._id} className="flex items-center gap-3">
                     <div className="relative">
@@ -1326,61 +1204,95 @@ export function WorkspaceLayout({
                       <FaCircle className="absolute -bottom-0.5 -right-0.5 text-[10px] text-emerald-500" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-[#181512]">
+                      <p className="truncate text-sm font-medium text-[#181512] dark:text-[#F6F2EA]">
                         {member.name}
                       </p>
-                      <p className="truncate text-xs text-[#8A8174]">
+                      <p className="truncate text-xs text-[#8A8174] dark:text-[#8F887B]">
                         {isLead ? "Project lead" : member.university || "Collaborator"}
                       </p>
                     </div>
                     {isLead && (
-                      <span className="rounded bg-[#FFF1E8] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#D94E00]">
+                      <span className="rounded bg-[#FFF1E8] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#D94E00] dark:bg-[#2A1B14] dark:text-[#FFAA73]">
                         Lead
                       </span>
                     )}
+                    {!isLead && chatContext.currentUserRole === "host" ? (
+                      <button
+                        onClick={() => {
+                          if (isConfirmingRemoval) {
+                            void removeMember(member);
+                            return;
+                          }
+                          setConfirmingRemovalMemberId(member._id);
+                        }}
+                        onBlur={() => {
+                          if (!isRemovalPending) {
+                            setConfirmingRemovalMemberId((current) =>
+                              current === member._id ? null : current,
+                            );
+                          }
+                        }}
+                        disabled={isRemovalPending}
+                        className={`rounded border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] transition ${
+                          isConfirmingRemoval
+                            ? "border-red-300 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/70 dark:bg-red-950/40 dark:text-red-300"
+                            : "border-[#E5E0D8] text-[#7A7267] hover:border-[#FF5C00] hover:text-[#FF5C00] dark:border-[#3A342C] dark:text-[#A8A093] dark:hover:border-[#FF5C00] dark:hover:text-[#FFAA73]"
+                        } disabled:opacity-60`}
+                      >
+                        {isRemovalPending
+                          ? "Removing..."
+                          : isConfirmingRemoval
+                            ? "Confirm"
+                            : "Remove"}
+                      </button>
+                    ) : null}
                   </div>
                 );
               })}
             </div>
           </div>
 
-          <div className="mx-5 h-px bg-[#EAE4DA]" />
+          <div className="mx-5 h-px bg-[#EAE4DA] dark:bg-[#242424]" />
 
           <div className="px-5 py-5">
-            <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174]">
+            <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174] dark:text-[#8F887B]">
               Workspace Snapshot
             </div>
 
-            <div className="mt-4 rounded-2xl border border-[#E5E0D8] p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-[#1B1814]">
-                <FaClock className="text-xs text-[#FF5C00]" />
-                Sprint Progress
+            {chatContext.currentUserRole === "host" ? (
+              <div className="mt-4 rounded-2xl border border-[#E5E0D8] p-4 dark:border-[#2A2A2A] dark:bg-[#141414]">
+                <div className="flex items-center gap-2 text-sm font-semibold text-[#1B1814] dark:text-[#F6F2EA]">
+                  <FaClock className="text-xs text-[#FF5C00]" />
+                  Sprint Progress
+                </div>
+                <p className="mt-2 font-mono text-xs text-[#8A8174] dark:text-[#8F887B]">
+                  {completedMembersCount} of {memberCount} members have completed at least one task
+                </p>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#EEE8DE] dark:bg-[#262626]">
+                  <div
+                    className="h-full rounded-full bg-[#FF5C00]"
+                    style={{ width: `${sprintProgress}%` }}
+                  />
+                </div>
+                <div className="mt-2 flex justify-between text-xs text-[#7A7267] dark:text-[#A8A093]">
+                  <span>{sprintProgress}% done</span>
+                  <span>{completedPlanningTasks} task(s) touched</span>
+                </div>
               </div>
-              <p className="mt-2 font-mono text-xs text-[#8A8174]">
-                {completedTasks} of {tasks.length} tasks completed
-              </p>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#EEE8DE]">
-                <div
-                  className="h-full rounded-full bg-[#FF5C00]"
-                  style={{ width: `${sprintProgress}%` }}
-                />
-              </div>
-              <div className="mt-2 flex justify-between text-xs text-[#7A7267]">
-                <span>{sprintProgress}% done</span>
-                <span>{taskCounts.progress} active</span>
-              </div>
-            </div>
+            ) : null}
 
             <div className="mt-4 grid gap-3">
-              <div className="rounded-2xl border border-[#E5E0D8] p-4">
-                <div className="flex items-center gap-2 text-sm font-semibold text-[#1B1814]">
+              <div className="rounded-2xl border border-[#E5E0D8] p-4 dark:border-[#2A2A2A] dark:bg-[#141414]">
+                <div className="flex items-center gap-2 text-sm font-semibold text-[#1B1814] dark:text-[#F6F2EA]">
                   <FaUsers className="text-xs text-[#FF5C00]" />
                   Capacity
                 </div>
-                <p className="mt-2 text-sm text-[#5E564B]">
-                  {memberCount} active member(s) across {maxPositions + 1} planned seats.
+                <p className="mt-2 text-sm text-[#5E564B] dark:text-[#C8C2B7]">
+                  {plannedSeats
+                    ? `${memberCount} active member(s) across ${plannedSeats} planned seats.`
+                    : `${memberCount} active member(s) in an open-to-all workspace.`}
                 </p>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#EEE8DE]">
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#EEE8DE] dark:bg-[#262626]">
                   <div
                     className="h-full rounded-full bg-[#111111]"
                     style={{ width: `${occupancy}%` }}
@@ -1388,22 +1300,22 @@ export function WorkspaceLayout({
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-[#E5E0D8] p-4">
-                <div className="flex items-center gap-2 text-sm font-semibold text-[#1B1814]">
+              <div className="rounded-2xl border border-[#E5E0D8] p-4 dark:border-[#2A2A2A] dark:bg-[#141414]">
+                <div className="flex items-center gap-2 text-sm font-semibold text-[#1B1814] dark:text-[#F6F2EA]">
                   <FaFolderOpen className="text-xs text-[#FF5C00]" />
                   Resources
                 </div>
-                <p className="mt-2 text-sm text-[#5E564B]">
-                  {resources.length} saved resource(s) available to the team.
+                <p className="mt-2 text-sm text-[#5E564B] dark:text-[#C8C2B7]">
+                  {(resources || []).length} saved resource(s) available to the team.
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="mx-5 h-px bg-[#EAE4DA]" />
+          <div className="mx-5 h-px bg-[#EAE4DA] dark:bg-[#242424]" />
 
           <div className="flex-1 px-5 py-5">
-            <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174]">
+            <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#8A8174] dark:text-[#8F887B]">
               Quick Links
             </div>
             <div className="mt-4 space-y-2">
@@ -1418,7 +1330,7 @@ export function WorkspaceLayout({
                         ? "noopener noreferrer"
                         : undefined
                     }
-                    className="flex items-center gap-3 rounded-xl border border-[#E5E0D8] px-3 py-3 text-sm text-[#1B1814] transition hover:border-[#FF5C00] hover:text-[#FF5C00]"
+                    className="flex items-center gap-3 rounded-xl border border-[#E5E0D8] px-3 py-3 text-sm text-[#1B1814] transition hover:border-[#FF5C00] hover:text-[#FF5C00] dark:border-[#2A2A2A] dark:bg-[#141414] dark:text-[#F6F2EA]"
                   >
                     {link.icon || <FaLink className="text-xs" />}
                     <span>{link.label}</span>

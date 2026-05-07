@@ -5,6 +5,7 @@ import { useConvex, useMutation } from "convex/react";
 import { Activity, Eye, Sparkles } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { cn } from "@/lib/utils";
+import { generateClientId } from "@/lib/utils/generateClientId";
 
 const VISITOR_STORAGE_KEY = "spark-visitor-id";
 
@@ -48,7 +49,7 @@ function VisitorCounterLive() {
 
     async function registerVisitor() {
       const existingVisitorId = window.localStorage.getItem(VISITOR_STORAGE_KEY);
-      const visitorId = existingVisitorId ?? crypto.randomUUID();
+      const visitorId = existingVisitorId ?? generateClientId();
 
       if (!existingVisitorId) {
         window.localStorage.setItem(VISITOR_STORAGE_KEY, visitorId);

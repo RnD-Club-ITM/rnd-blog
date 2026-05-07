@@ -1,0 +1,16 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sparkBolt" x1="64" y1="28" x2="186" y2="224" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFD95A" />
+      <stop offset="0.48" stop-color="#FFB100" />
+      <stop offset="1" stop-color="#FF5C00" />
+    </linearGradient>
+  </defs>
+  <path
+    d="M144.088 24L61 139.752H115.289L88.5193 232L195 98.0645H140.033L144.088 24Z"
+    fill="url(#sparkBolt)"
+    stroke="#111111"
+    stroke-width="12"
+    stroke-linejoin="round"
+  />
+</svg>

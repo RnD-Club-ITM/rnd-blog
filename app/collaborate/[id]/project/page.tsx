@@ -75,6 +75,7 @@ export default async function WorkspacePage({
           chatContext={{
             convexConfigured: Boolean(process.env.NEXT_PUBLIC_CONVEX_URL),
             currentUserRole,
+            currentUserClerkId: userId,
             memberName: currentMember.name || "Workspace member",
             memberAvatarUrl: getImageUrl(currentMember.avatar) || undefined,
           }}
