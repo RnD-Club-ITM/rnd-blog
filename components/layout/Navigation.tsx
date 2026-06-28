@@ -16,6 +16,7 @@ import {
   Menu,
   X,
   Calendar,
+  Newspaper,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { neobrutalAuth } from "@/lib/clerk-theme";
@@ -23,6 +24,8 @@ import { neobrutalAuth } from "@/lib/clerk-theme";
 const navLinks = [
   { href: "/explore", label: "Explore", icon: <Compass className="w-5 h-5" /> },
   { href: "/quests", label: "Quests", icon: <ScrollText className="w-5 h-5" /> },
+  { href: "/hackathons", label: "Hackathons", icon: <Trophy className="w-5 h-5" /> },
+  { href: "/news", label: "News", icon: <Newspaper className="w-5 h-5" /> },
   { href: "/events", label: "Events", icon: <Calendar className="w-5 h-5" /> },
   { href: "/collaborate", label: "Collaborate", icon: <Handshake className="w-5 h-5" /> },
   { href: "/leaderboard", label: "Leaderboard", icon: <Trophy className="w-5 h-5" /> },
@@ -136,7 +139,7 @@ export function Navigation() {
           
           {/* Left Items */}
           <div className="flex flex-1 justify-around">
-            {navLinks.filter(l => l.href !== "/leaderboard").slice(0, 2).map((link) => {
+            {navLinks.filter(l => l.href !== "/leaderboard").slice(0, 3).map((link) => {
               const active = isActive(link.href);
               return (
                 <Link
@@ -170,7 +173,7 @@ export function Navigation() {
 
           {/* Right Items */}
           <div className="flex flex-1 justify-around">
-            {navLinks.filter(l => l.href !== "/leaderboard").slice(2).map((link) => {
+            {navLinks.filter(l => l.href !== "/leaderboard").slice(3).map((link) => {
               const active = isActive(link.href);
               return (
                 <Link
